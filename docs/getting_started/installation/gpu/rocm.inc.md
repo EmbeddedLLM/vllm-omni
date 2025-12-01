@@ -19,7 +19,7 @@ vLLM-Omni current recommends the steps in under setup through Docker Images.
 
 #### Get the correct docker environment
 
-The v0.11.0 releases is on Oct 3, 2025, so we will pull a AMD nightly docker image close to the release period.
+The v0.11.0 releases is on Oct 3, 2025, so we will pull a AMD nightly docker image close to the release period. `rocm/vllm-dev:nightly_main_20251005` is picked as it has a correct `transformers` version that supports qwen3_omni.
 
 `docker pull rocm/vllm-dev:nightly_main_20251005`
 
@@ -47,11 +47,11 @@ docker run -it \
 
 ```bash
 sudo apt update
-sudo apt install ffmpeg
+sudo apt install ffmpeg -y
 ```
 
 #### Installation of vLLM
-Install the v0.11.0 release of vLLM as vLLM-Omni is currently depend on v0.11.2.
+Install the v0.11.0 release of vLLM as vLLM-Omni is currently depend on v0.11.0.
 
 ```bash
 # uninstall existing vllm which is based on the main branch, not on the releases branch
@@ -72,7 +72,7 @@ PYTORCH_ROCM_ARCH=gfx942 python3 setup.py develop
 Install additional requirements for vLLM-Omni
 ```bash
 git clone https://github.com/vllm-project/vllm-omni.git
-cd vllm_omni
+cd vllm-omni
 python3 -m pip install -e .
 ```
 
