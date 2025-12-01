@@ -54,6 +54,50 @@ sudo apt install ffmpeg
     ``````py
     --8<-- "examples/offline_inference/qwen2_5_omni/extract_prompts.py"
     ``````
+??? abstract "meta.lst"
+    ``````lst
+    --8<-- "examples/offline_inference/qwen2_5_omni/meta.lst"
+    ``````
+??? abstract "output_audio/00000.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00000.txt"
+    ``````
+??? abstract "output_audio/00001.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00001.txt"
+    ``````
+??? abstract "output_audio/00002.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00002.txt"
+    ``````
+??? abstract "output_audio/00003.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00003.txt"
+    ``````
+??? abstract "output_audio/00004.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00004.txt"
+    ``````
+??? abstract "output_audio/00005.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00005.txt"
+    ``````
+??? abstract "output_audio/00006.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00006.txt"
+    ``````
+??? abstract "output_audio/00007.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00007.txt"
+    ``````
+??? abstract "output_audio/00008.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00008.txt"
+    ``````
+??? abstract "output_audio/00009.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/output_audio/00009.txt"
+    ``````
 ??? abstract "run_multiple_prompts.sh"
     ``````sh
     --8<-- "examples/offline_inference/qwen2_5_omni/run_multiple_prompts.sh"
@@ -61,4 +105,12 @@ sudo apt install ffmpeg
 ??? abstract "run_single_prompt.sh"
     ``````sh
     --8<-- "examples/offline_inference/qwen2_5_omni/run_single_prompt.sh"
+    ``````
+??? abstract "top10.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/top10.txt"
+    ``````
+??? abstract "top100.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen2_5_omni/top100.txt"
     ``````

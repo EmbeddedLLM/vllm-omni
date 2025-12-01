@@ -46,6 +46,10 @@ sudo apt install ffmpeg
     ``````py
     --8<-- "examples/offline_inference/qwen3_omni/end2end.py"
     ``````
+??? abstract "output_audio/00000.txt"
+    ``````txt
+    --8<-- "examples/offline_inference/qwen3_omni/output_audio/00000.txt"
+    ``````
 ??? abstract "run_multiple_prompts.sh"
     ``````sh
     --8<-- "examples/offline_inference/qwen3_omni/run_multiple_prompts.sh"

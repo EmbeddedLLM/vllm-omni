@@ -21,6 +21,18 @@ python text_to_image.py \
   --height 1024 \
   --width 1024 \
   --output outputs/coffee.png
+
+# On ROCm, for vLLM v0.11.2
+MIOPEN_FIND_MODE=FAST \
+python text_to_image.py \
+  --prompt "a cup of coffee on the table" \
+  --seed 42 \
+  --cfg_scale 4.0 \
+  --num_images_per_prompt 1 \
+  --num_inference_steps 50 \
+  --height 1024 \
+  --width 1024 \
+  --output outputs/coffee.png
 ```
 
 Key arguments:
@@ -41,6 +53,9 @@ Launch the gradio demo:
 
 ```bash
 python gradio_demo.py --port 7862
+
+# On ROCm, for vLLM v0.11.2
+MIOPEN_FIND_MODE=FAST python gradio_demo.py --port 7862
 ```
 
 Then open `http://localhost:7862/` on your local browser to interact with the web UI.
