@@ -100,6 +100,7 @@ minijinja-cli test-template-amd.j2 test-amd.yaml \
     -D cov_enabled="$COV_ENABLED" \
     -D vllm_ci_branch="$VLLM_CI_BRANCH" \
     | sed '/^[[:space:]]*$/d' \
+    | sed '/queue:/a\    cluster: "CI"' \
     > pipeline.yaml
 
 echo "--- Generated Pipeline Preview:"
