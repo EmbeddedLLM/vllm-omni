@@ -35,6 +35,12 @@ logger = init_logger(__name__)
 
 
 class OmniGPUModelRunner(GPUModelRunner):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._omni_per_req_additional_information: Optional[dict[str, dict]] = None
+        self._omni_num_scheduled_tokens_np: Optional[np.ndarray] = None
+        self._omni_last_model_output: Optional[object] = None
+
     def _init_mrope_positions(self, req_state: CachedRequestState):
         """Initialize M-RoPE positions for multimodal inputs.
 
@@ -895,3 +901,78 @@ class OmniGPUModelRunner(GPUModelRunner):
                 if req_info:
                     per_req_additional_information[req_id] = req_info
         return per_req_additional_information
+
+
+    def _preprocess(
+        self,
+        scheduler_output: "SchedulerOutput",
+        num_input_tokens: int,
+        intermediate_tensors: IntermediateTensors | None = None,
+    ):
+        """Align与v0.12 preprocess，同步Omni的额外输入/信息通道。"""
+        # 先解码 payload，确保 request state 具备 prompt_embeds / additional_information
+        self._decode_and_store_request_payloads(scheduler_output)
+
+        (
+            input_ids,
+            inputs_embeds,
+            positions,
+            intermediate_tensors,
+            model_kwargs,
+            ec_connector_output,
+        ) = super()._preprocess(
+            scheduler_output,
+            num_input_tokens,
+            intermediate_tensors,
+        )
+
+        req_ids = self.input_batch.req_ids
+        num_scheduled_tokens_np = np.array(
+            [scheduler_output.num_scheduled_tokens[rid] for rid in req_ids],
+            dtype=np.int32,
+        )
+        self._omni_num_scheduled_tokens_np = num_scheduled_tokens_np
+
+        per_req_additional_information: dict[str, dict] = {}
+        if inputs_embeds is not None:
+            # 仅当 base 路径已经使用 embeddings 输入时才覆盖 prompt_embeds
+            per_req_additional_information = self._collect_additional_information_for_prefill(
+                num_scheduled_tokens_np
+            )
+            self._omni_per_req_additional_information = per_req_additional_information
+        else:
+            self._omni_per_req_additional_information = per_req_additional_information
+
+        return (
+            input_ids,
+            inputs_embeds,
+            positions,
+            intermediate_tensors,
+            model_kwargs,
+            ec_connector_output,
+        )
+
+    def _model_forward(
+        self,
+        input_ids: torch.Tensor | None = None,
+        positions: torch.Tensor | None = None,
+        intermediate_tensors: IntermediateTensors | None = None,
+        inputs_embeds: torch.Tensor | None = None,
+        **model_kwargs: dict[str, Any],
+    ):
+        """在前向时注入 omni 额外 kwargs，并缓存模型输出（供 AR runner 使用）。"""
+        model_kwargs_extra = self._build_model_kwargs_extra(
+            self._omni_per_req_additional_information,
+            self._omni_num_scheduled_tokens_np,
+        )
+        model_output = super()._model_forward(
+            input_ids=input_ids,
+            positions=positions,
+            intermediate_tensors=intermediate_tensors,
+            inputs_embeds=inputs_embeds,
+            **model_kwargs,
+            **model_kwargs_extra,
+        )
+        # 缓存模型输出以便后续 sample_tokens 使用多模态结果。
+        self._omni_last_model_output = model_output
+        return model_output

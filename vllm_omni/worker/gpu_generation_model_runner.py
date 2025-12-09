@@ -47,105 +47,21 @@ class GPUGenerationModelRunner(OmniGPUModelRunner):
     def _preprocess(
         self,
         scheduler_output: SchedulerOutput,
+        num_input_tokens: int,
         intermediate_tensors: IntermediateTensors | None = None,
-        ubatch_slices: UBatchSlices | None = None,
-        num_tokens_after_padding: torch.Tensor | None = None,
     ) -> tuple[
-        int,
-        int,
-        torch.Tensor | None,
         torch.Tensor | None,
         torch.Tensor | None,
         torch.Tensor,
         IntermediateTensors | None,
         dict[str, Any],
+        Any,
     ]:
-        # Input token count for this iteration (not used by diffusion, but
-        # retained to keep DP padding/ordering consistent)
-        num_input_tokens = scheduler_output.total_num_scheduled_tokens
-        num_pad, num_tokens_after_padding = self.get_dp_padding(num_input_tokens)
-        num_input_tokens += num_pad
-
-        # _prepare_inputs may reorder the batch, so we must gather multi
-        # modal outputs after that to ensure the correct order
-        if self.supports_mm_inputs and get_pp_group().is_first_rank and not self.model_config.is_encoder_decoder:
-            # Run the multimodal encoder if any.
-            self._execute_mm_encoder(scheduler_output)
-            mm_embeds = self._gather_mm_embeddings(scheduler_output)
-
-            # NOTE(woosuk): To unify token ids and soft tokens (vision
-            # embeddings), we always use embeddings (rather than token ids)
-            # as input to the multimodal model, even when the input is text.
-            inputs_embeds_scheduled = self.model.get_input_embeddings(
-                input_ids=self.input_ids.gpu[:num_input_tokens],
-                multimodal_embeddings=mm_embeds or None,
-            )
-
-            # TODO(woosuk): Avoid the copy. Optimize.
-            self.inputs_embeds.gpu[:num_input_tokens].copy_(inputs_embeds_scheduled)
-
-            input_ids = self.input_ids.gpu[:num_input_tokens]
-            inputs_embeds = self.inputs_embeds.gpu[:num_input_tokens]
-            model_kwargs = {
-                **self._init_model_kwargs(num_input_tokens),
-                **self._extract_mm_kwargs(scheduler_output),
-            }
-        elif self.enable_prompt_embeds and get_pp_group().is_first_rank:
-            # Get the input embeddings for the tokens that are not input embeds,
-            # then put them into the appropriate positions.
-            # TODO(qthequartermasterman): Since even when prompt embeds are
-            # enabled, (a) not all requests will use prompt embeds, and (b)
-            # after the initial prompt is processed, the rest of the generated
-            # tokens will be token ids, it is not desirable to have the
-            # embedding layer outside of the CUDA graph all the time. The v0
-            # engine avoids this by "double compiling" the CUDA graph, once
-            # with input_ids and again with inputs_embeds, for all num_tokens.
-            # If a batch only has token ids, then including the embedding layer
-            # in the CUDA graph will be more performant (like in the else case
-            # below).
-            token_ids_idx = self.is_token_ids.gpu[:num_input_tokens].nonzero(as_tuple=False).squeeze(1)
-            # Some tokens ids may need to become embeds
-            if token_ids_idx.numel() > 0:
-                token_ids = self.input_ids.gpu[token_ids_idx]
-                tokens_to_embeds = self.model.get_input_embeddings(input_ids=token_ids)
-                self.inputs_embeds.gpu[token_ids_idx] = tokens_to_embeds
-
-            inputs_embeds = self.inputs_embeds.gpu[:num_input_tokens]
-            model_kwargs = self._init_model_kwargs(num_input_tokens)
-            input_ids = self.input_ids.gpu[:num_input_tokens]
-        else:
-            # For text-only models, we use token ids as input.
-            # While it is possible to use embeddings as input just like the
-            # multimodal models, it is not desirable for performance since
-            # then the embedding layer is not included in the CUDA graph.
-            input_ids = self.input_ids.gpu[:num_input_tokens]
-            inputs_embeds = None
-            model_kwargs = self._init_model_kwargs(num_input_tokens)
-        if self.uses_mrope:
-            positions = self.mrope_positions.gpu[:, :num_input_tokens]
-        else:
-            positions = self.positions.gpu[:num_input_tokens]
-
-        if get_pp_group().is_first_rank:
-            intermediate_tensors = None
-        else:
-            intermediate_tensors = self.sync_and_slice_intermediate_tensors(
-                num_input_tokens, intermediate_tensors, True
-            )
-
-        if self.model_config.is_encoder_decoder and scheduler_output.scheduled_encoder_inputs:
-            encoder_inputs = self._extract_encoder_inputs(scheduler_output)
-            model_kwargs.update(encoder_inputs)
-
-        return (
+        """Use v0.12-style preprocess and keep Omni payload/extra kwargs."""
+        return super()._preprocess(
+            scheduler_output,
             num_input_tokens,
-            num_input_tokens,
-            num_tokens_after_padding,
-            input_ids,
-            inputs_embeds,
-            positions,
             intermediate_tensors,
-            model_kwargs,
         )
 
     @torch.inference_mode()
@@ -156,52 +72,83 @@ class GPUGenerationModelRunner(OmniGPUModelRunner):
     ) -> OmniModelRunnerOutput | IntermediateTensors:
         with record_function_or_nullcontext("Preprocess"):
             with self.synchronize_input_prep():
-                # Update persistent batch states.
                 self._update_states(scheduler_output)
                 if not scheduler_output.total_num_scheduled_tokens:
                     return EMPTY_MODEL_RUNNER_OUTPUT
 
-                # Prepare the decoder inputs.
+                num_reqs = self.input_batch.num_reqs
+                req_ids = self.input_batch.req_ids
+                tokens = [scheduler_output.num_scheduled_tokens[i] for i in req_ids]
+                num_scheduled_tokens_np = np.array(tokens, dtype=np.int32)
+                max_num_scheduled_tokens = int(num_scheduled_tokens_np.max())
+                num_tokens_unpadded = scheduler_output.total_num_scheduled_tokens
+
+                logits_indices, spec_decode_metadata = self._prepare_inputs(
+                    scheduler_output,
+                    num_scheduled_tokens_np,
+                )
+
+                (
+                    cudagraph_mode,
+                    batch_desc,
+                    ubatch_slices,
+                    num_tokens_across_dp,
+                ) = self._determine_batch_execution_and_padding(
+                    num_tokens=num_tokens_unpadded,
+                    num_reqs=num_reqs,
+                    num_scheduled_tokens_np=num_scheduled_tokens_np,
+                    max_num_scheduled_tokens=max_num_scheduled_tokens,
+                    use_cascade_attn=False,
+                )
+
+                num_tokens_padded = batch_desc.num_tokens
+                num_reqs_padded = (
+                    batch_desc.num_reqs if batch_desc.num_reqs is not None else num_reqs
+                )
+                use_spec_decode = len(scheduler_output.scheduled_spec_decode_tokens) > 0
+                pad_attn = cudagraph_mode == CUDAGraphMode.FULL
+
                 (
                     attn_metadata,
-                    logits_indices,
-                    spec_decode_metadata,
-                    num_scheduled_tokens_np,
                     spec_decode_common_attn_metadata,
-                    max_query_len,
-                    ubatch_slices,
-                    num_tokens_after_padding,
-                ) = self._prepare_inputs(scheduler_output)
+                ) = self._build_attention_metadata(
+                    num_tokens=num_tokens_unpadded,
+                    num_tokens_padded=num_tokens_padded if pad_attn else None,
+                    num_reqs=num_reqs,
+                    num_reqs_padded=num_reqs_padded if pad_attn else None,
+                    max_query_len=max_num_scheduled_tokens,
+                    ubatch_slices=ubatch_slices,
+                    logits_indices=logits_indices,
+                    use_spec_decode=use_spec_decode,
+                    num_scheduled_tokens=scheduler_output.num_scheduled_tokens,
+                    cascade_attn_prefix_lens=None,
+                )
 
-            # Input token count for this iteration (not used by diffusion, but
-            # retained to keep DP padding/ordering consistent)
             (
-                num_scheduled_tokens,
-                num_input_tokens,
-                num_tokens_across_dp,
                 input_ids,
                 inputs_embeds,
                 positions,
                 intermediate_tensors,
                 model_kwargs,
+                ec_connector_output,
             ) = self._preprocess(
                 scheduler_output,
+                num_tokens_padded,
                 intermediate_tensors,
-                ubatch_slices,
-                num_tokens_after_padding,
             )
 
-        cudagraph_runtime_mode = CUDAGraphMode.NONE
-        # Run the model.
-        # Use persistent buffers for CUDA graphs.
+        if self.calculate_kv_scales:
+            cudagraph_mode = CUDAGraphMode.NONE
+            self.calculate_kv_scales = False
+
         with (
             set_forward_context(
                 attn_metadata,
                 self.vllm_config,
-                num_tokens=num_input_tokens,
+                num_tokens=num_tokens_padded,
                 num_tokens_across_dp=num_tokens_across_dp,
-                cudagraph_runtime_mode=cudagraph_runtime_mode,
-                batch_descriptor=None,
+                cudagraph_runtime_mode=cudagraph_mode,
+                batch_descriptor=batch_desc,
                 ubatch_slices=ubatch_slices,
             ),
             record_function_or_nullcontext("Forward"),
@@ -212,24 +159,28 @@ class GPUGenerationModelRunner(OmniGPUModelRunner):
                 positions=positions,
                 intermediate_tensors=intermediate_tensors,
                 inputs_embeds=inputs_embeds,
-                multimodal_kwargs=model_kwargs,
+                model_kwargs=model_kwargs,
                 logits_indices=logits_indices,
             )
 
         _, multimodal_outputs = self.extract_multimodal_outputs(outputs)
-        # Ensure one tensor per request, map to CPU for output struct
         pooler_output: list[torch.Tensor | None] = []
         if isinstance(multimodal_outputs, torch.Tensor):
-            # If model returned a single stacked tensor, split by requests
             assert multimodal_outputs.shape[0] == self.input_batch.num_reqs
             for i in range(self.input_batch.num_reqs):
-                pooler_output.append(multimodal_outputs[i].detach().to("cpu").contiguous())
+                pooler_output.append(
+                    multimodal_outputs[i].detach().to("cpu").contiguous()
+                )
         elif isinstance(multimodal_outputs, list):
             for out in multimodal_outputs:
-                pooler_output.append(out.detach().to("cpu").contiguous() if out is not None else None)
+                pooler_output.append(
+                    out.detach().to("cpu").contiguous() if out is not None else None
+                )
         elif isinstance(multimodal_outputs, dict):
             for out in multimodal_outputs.values():
-                pooler_output.append(out.detach().to("cpu").contiguous() if out is not None else None)
+                pooler_output.append(
+                    out.detach().to("cpu").contiguous() if out is not None else None
+                )
         else:
             raise RuntimeError("Unsupported diffusion output type")
 
@@ -257,11 +208,11 @@ class GPUGenerationModelRunner(OmniGPUModelRunner):
     def _run_generation_model(
         self,
         *,
-        input_ids: torch.Tensor,
-        positions: torch.Tensor,
+        input_ids: torch.Tensor | None,
+        positions: torch.Tensor | None,
         intermediate_tensors: IntermediateTensors | None,
         inputs_embeds: torch.Tensor | None,
-        multimodal_kwargs: dict,
+        model_kwargs: dict,
         logits_indices: torch.Tensor,
     ) -> torch.Tensor | list[torch.Tensor]:
         """Run generation from codec codes to waveforms.
@@ -279,7 +230,7 @@ class GPUGenerationModelRunner(OmniGPUModelRunner):
             positions=positions,
             intermediate_tensors=intermediate_tensors,
             inputs_embeds=inputs_embeds,
-            **MultiModalKwargs.as_kwargs(multimodal_kwargs, device=self.device),
+            **MultiModalKwargs.as_kwargs(model_kwargs, device=self.device),
             sampling_metadata=self.input_batch.sampling_metadata,
             logits_index=logits_indices,
             sampler=self.sampler,
