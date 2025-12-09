@@ -56,9 +56,14 @@ Install the v0.11.0 release of vLLM as vLLM-Omni is currently depend on v0.11.0.
 ```bash
 # uninstall existing vllm which is based on the main branch, not on the releases branch
 python3 -m pip uninstall -y vllm
+git clone https://github.com/vllm-project/vllm.git vllm0110
+cd vllm0110/
 
-git clone https://github.com/vllm-project/vllm.git --branch releases/v0.11.0 vllm0110
-cd vllm0110
+# checkout the version tag v0.11.0
+git checkout -b v0.11.0 v0.11.0
+
+# you should see 0.11.0
+python -c "import setuptools_scm; print(setuptools_scm.get_version())"
 
 # PYTORCH_ROCM_ARCH=<your-gpu-arch> python3 setup.py develop
 PYTORCH_ROCM_ARCH=gfx942 python3 setup.py develop
@@ -69,11 +74,27 @@ PYTORCH_ROCM_ARCH=gfx942 python3 setup.py develop
 
 
 #### Installation of vLLM-Omni
+
 Install additional requirements for vLLM-Omni
 ```bash
-git clone https://github.com/vllm-project/vllm-omni.git
-cd vllm-omni
-python3 -m pip install -e .
+pip install vllm-omni
+# you might also want to clone the vllm-omni repo to access the script
+
+# OR clone and checkout to the release version.
+# git clone https://github.com/vllm-project/vllm-omni.git
+# cd vllm-omni
+# git checkout -b v0.11.0rc1 v0.11.0rc1
+# python3 -m pip install -e .
+```
+
+#### Setup Environment Variables
+
+```bash
+export MIOPEN_FIND_MODE=FAST
+export VLLM_ROCM_USE_AITER=1
+export VLLM_ROCM_USE_AITER_MHA=1
+export VLLM_ROCM_USE_AITER_LINEAR=0
+export VLLM_ROCM_USE_AITER_RMSNORM=0
 ```
 
 # --8<-- [end:build-wheel-from-source-in-docker]
