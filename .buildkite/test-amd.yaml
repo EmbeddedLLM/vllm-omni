@@ -4,7 +4,7 @@ steps:
     commands:
       - "docker build -f docker/Dockerfile.rocm -t vllm-omni-rocm ."
     agents:
-      queue: "cpu_queue_premerge_us_east_1"
+      queue: "amd-cpu"
 
   - label: "Simple Unit Test"
     commands:
