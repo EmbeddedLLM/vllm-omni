@@ -75,16 +75,25 @@ PYTORCH_ROCM_ARCH=gfx942 python3 setup.py develop
 
 #### Installation of vLLM-Omni
 
-Install additional requirements for vLLM-Omni
+There are two approaches to installing `vllm-omni`
+
+
+1. Install from PyPI
+
 ```bash
 pip install vllm-omni
-# you might also want to clone the vllm-omni repo to access the script
 
-## OR clone and checkout to the release version.
-# git clone https://github.com/vllm-project/vllm-omni.git
-# cd vllm-omni
-# git checkout -b v0.11.0rc1 v0.11.0rc1
-# python3 -m pip install -e .
+# you might want to also download the source code of the same version to run the examples
+```
+
+2. Install from source
+
+```bash
+# clone and checkout to the release version.
+git clone https://github.com/vllm-project/vllm-omni.git
+cd vllm-omni
+git checkout v0.11.0rc1
+pip install -e .
 ```
 
 #### Setup Environment Variables
