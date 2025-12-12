@@ -1,12 +1,11 @@
-ARG ROCM_BASE_IMAGE=rocm/vllm-dev
-ARG ROCM_BASE_TAG=nightly_main_20251005
-FROM ${ROCM_BASE_IMAGE}:${ROCM_BASE_TAG}
+ARG BASE_IMAGE=rocm/vllm-dev:nightly_main_20251005
+FROM ${BASE_IMAGE}
 
-ARG APP_DIR=/workspace/vllm-omni
+ARG COMMON_WORKDIR=/app
 ARG VLLM_VERSION=v0.11.0
 ARG PYTORCH_ROCM_ARCH="gfx942;gfx950"
 
-WORKDIR ${APP_DIR}
+WORKDIR ${COMMON_WORKDIR}
 
 # Step 1: Setup - Install system dependencies
 RUN apt-get update && \
@@ -15,27 +14,23 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Step 2: Reinstall vllm from source
-RUN cd ../ && python3 -m pip uninstall -y vllm && \
+RUN python3 -m pip uninstall -y vllm && rm -rf vllm &&\
     git clone https://github.com/vllm-project/vllm.git && \
     cd vllm && \
     git checkout ${VLLM_VERSION} && \
-    python3 -c "import setuptools_scm; print(setuptools_scm.get_version())" && \
+    python3 -m pip install -r requirements/rocm.txt && \
+    python3 setup.py clean --all && \
     PYTORCH_ROCM_ARCH=${PYTORCH_ROCM_ARCH} python3 setup.py develop && \
-    cd / && \
+    cd ../ && \
     rm -rf vllm/.git
 
+RUN mkdir -p ${COMMON_WORKDIR}/vllm-omni
+
 # Step 3: Copy vllm-omni code and install without uv
-COPY . ${APP_DIR}
-RUN python3 -m pip install --no-cache-dir ".[dev]"
+COPY . ${COMMON_WORKDIR}/vllm-omni
+RUN cd ${COMMON_WORKDIR}/vllm-omni && python3 -m pip install --no-cache-dir ".[dev]"
 
 # Create python symlink
 RUN ln -sf /usr/bin/python3 /usr/bin/python
-
-# Step 4: Set environment variables for ROCm optimization
-ENV MIOPEN_FIND_MODE=FAST
-ENV VLLM_ROCM_USE_AITER=1
-ENV VLLM_ROCM_USE_AITER_MHA=1
-ENV VLLM_ROCM_USE_AITER_LINEAR=0
-ENV VLLM_ROCM_USE_AITER_RMSNORM=0
 
 ENTRYPOINT []
