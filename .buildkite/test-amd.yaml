@@ -7,7 +7,7 @@ steps:
       - "docker tag vllm-omni-rocm-ci public.ecr.aws/q9t5s3a7/vllm-rocm-ci-test-repo:$BUILDKITE_COMMIT"
       - "docker push public.ecr.aws/q9t5s3a7/vllm-rocm-ci-test-repo:$BUILDKITE_COMMIT"
     agents:
-      queue: "amd-cpu"
+      queue: "cpu_queue_premerge_us_east_1"
 
   - label: "Simple Unit Test"
     commands:
