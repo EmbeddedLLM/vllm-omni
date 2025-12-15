@@ -229,16 +229,15 @@ class Qwen3OmniMoeForConditionalGeneration(
             return self.model.sampler
         return Sampler()
 
-    def get_input_embeddings(
+    def embed_input_ids(
         self,
         input_ids: torch.Tensor,
         multimodal_embeddings=None,
+        is_multimodal=None,
     ) -> torch.Tensor:
-        """Get input embeddings for the active model stage."""
         if self.model_stage == "code2wav":
-            # Code2wav doesn't use text embeddings
             return torch.zeros_like(input_ids).reshape(-1, 1).repeat(1, self.vllm_config.model_config.get_hidden_size())
-        return self.model.get_input_embeddings(input_ids, multimodal_embeddings)
+        return self.model.embed_input_ids(input_ids=input_ids, multimodal_embeddings=multimodal_embeddings, is_multimodal=is_multimodal)
 
     def embed_multimodal(self, **kwargs):
         """Delegate to active model for multimodal processing."""
@@ -340,7 +339,7 @@ class Qwen3OmniMoeForConditionalGeneration(
                     device=self._module_device(self.thinker),
                     dtype=torch.long,
                 )
-                thinker_tts_embeds = self.thinker.get_input_embeddings(tts_tokens)  # [1,3,thinker_hidden]
+                thinker_tts_embeds = self.thinker.embed_input_ids(tts_tokens)  # [1,3,thinker_hidden]
                 if (
                     isinstance(thinker_tts_embeds, torch.Tensor)
                     and thinker_tts_embeds.ndim == 3
@@ -356,7 +355,7 @@ class Qwen3OmniMoeForConditionalGeneration(
 
             # Return text-only output (with multimodal sidecar)
             return OmniOutput(
-                text_hidden_states=(text_hidden_states.squeeze(0) if added_batch_dim else text_hidden_states),
+                text_hidden_states=(text_hidden_states.reshape(-1, text_hidden_states.shape[-1])),
                 multimodal_outputs=multimodal_outputs,
             )
 
@@ -382,7 +381,7 @@ class Qwen3OmniMoeForConditionalGeneration(
 
             # Ensure we have base embeddings when only ids are provided
             if inputs_embeds is None and input_ids is not None:
-                inputs_embeds = self.talker.get_input_embeddings(input_ids)
+                inputs_embeds = self.talker.embed_input_ids(input_ids)
 
             # ------- Request-scoped additional information (no cross-request concat) -------
             request_ids: Optional[list[str]] = kwargs.get("request_ids")  # ordered
@@ -751,8 +750,6 @@ class Qwen3OmniMoeForConditionalGeneration(
         - hidden_projection: Used at runtime for multimodal hidden states (audio/image/video)
           from thinker's last layer, not needed for special token initialization
         """
-        # Get embeddings from both models
-        # self.thinker_embedding = self.thinker.model.get_input_embeddings()
         self.talker_embedding = self._load_talker_embedding()
 
         # Get configuration
@@ -963,7 +960,7 @@ class Qwen3OmniMoeForConditionalGeneration(
                     device=tts_pad_embed.device,
                     dtype=torch.bfloat16,
                 ),
-                self.talker.get_input_embeddings(codec_special_tokens).to(
+                self.talker.embed_input_ids(codec_special_tokens).to(
                     device=tts_pad_embed.device, dtype=torch.bfloat16
                 ),
             ),
@@ -1062,7 +1059,7 @@ class Qwen3OmniMoeForConditionalGeneration(
                 logitsprocs=LogitsProcessors(),
             )
         # Use active model for logits computation
-        logits = self.model.compute_logits(hidden_states, sampling_metadata)  # V, d
+        logits = self.model.compute_logits(hidden_states)  # V, d
         # Talker: suppress tokens by setting their probability to ~1e-9 (finite very small),
         # implemented by assigning their logits to log(1e-9).
 

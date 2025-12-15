@@ -44,26 +44,6 @@ class GPUGenerationModelRunner(OmniGPUModelRunner):
     - Executes generation process and returns tensors via `pooler_output`.
     """
 
-    def _preprocess(
-        self,
-        scheduler_output: SchedulerOutput,
-        num_input_tokens: int,
-        intermediate_tensors: IntermediateTensors | None = None,
-    ) -> tuple[
-        torch.Tensor | None,
-        torch.Tensor | None,
-        torch.Tensor,
-        IntermediateTensors | None,
-        dict[str, Any],
-        Any,
-    ]:
-        """Use v0.12-style preprocess and keep Omni payload/extra kwargs."""
-        return super()._preprocess(
-            scheduler_output,
-            num_input_tokens,
-            intermediate_tensors,
-        )
-
     @torch.inference_mode()
     def execute_model(
         self,

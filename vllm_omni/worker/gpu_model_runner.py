@@ -764,7 +764,15 @@ class OmniGPUModelRunner(GPUModelRunner):
         for req_id in self.input_batch.req_ids:
             req_state = self.requests.get(req_id)
             info = getattr(req_state, "additional_information_cpu", None) if req_state is not None else None
-            per_req_runtime_info.append(info if isinstance(info, dict) else {})
+            if info and isinstance(info, dict):
+                per_req_runtime_info.append(info)
+                # Debug: 打印队列状态
+                if "thinker_reply_part_per_request" in info:
+                    q = info["thinker_reply_part_per_request"]
+                    if hasattr(q, 'shape'):
+                        logger.debug(f"[OMNI] req={req_id} has thinker_reply_part_per_request queue shape: {q.shape}")
+            else:
+                per_req_runtime_info.append({})
         return per_req_runtime_info
 
     def _compute_request_token_spans(self, num_scheduled_tokens_np) -> list[tuple[int, int]]:
@@ -792,24 +800,33 @@ class OmniGPUModelRunner(GPUModelRunner):
             model_kwargs_extra["additional_information_by_req_id"] = per_req_additional_information
         try:
             model_kwargs_extra["runtime_additional_information"] = self._gather_runtime_additional_information()
-            model_kwargs_extra["request_ids"] = self.input_batch.req_ids
-            model_kwargs_extra["request_token_spans"] = self._compute_request_token_spans(num_scheduled_tokens_np)
-        except Exception:
-            pass
+            model_kwargs_extra["request_ids"] = list(self.input_batch.req_ids)
+            if num_scheduled_tokens_np is not None:
+                model_kwargs_extra["request_token_spans"] = self._compute_request_token_spans(num_scheduled_tokens_np)
+        except Exception as e:
+            logger.error(f"[OMNI DEBUG] Error building model_kwargs_extra: {e}")
+            import traceback
+            traceback.print_exc()
         return model_kwargs_extra
 
     def _process_additional_information_updates(self, multimodal_outputs: object) -> None:
         """Process model-provided per-request additional_information updates and merge into request state."""
         try:
+            if multimodal_outputs is None:
+                logger.debug("[OMNI] multimodal_outputs is None, no updates to process")
+                return
             if not isinstance(multimodal_outputs, dict):
+                logger.debug(f"[OMNI] multimodal_outputs is not dict: {type(multimodal_outputs)}")
                 return
             if (
                 "additional_information_update" not in multimodal_outputs
                 and "additional_information_update_by_req_id" not in multimodal_outputs
             ):
+                logger.debug(f"[OMNI] multimodal_outputs has no update keys: {list(multimodal_outputs.keys())}")
                 return
             updates_list = multimodal_outputs.get("additional_information_update")
             if isinstance(updates_list, list):
+                logger.debug(f"[OMNI] Processing additional_information_update list with {len(updates_list)} items")
                 for idx, upd in enumerate(updates_list):
                     if not isinstance(upd, dict) or idx >= len(self.input_batch.req_ids):
                         continue
@@ -817,18 +834,30 @@ class OmniGPUModelRunner(GPUModelRunner):
                     self._merge_additional_information_update(req_id, upd)
             updates_map = multimodal_outputs.get("additional_information_update_by_req_id")
             if isinstance(updates_map, dict):
+                logger.debug(f"[OMNI] Processing additional_information_update_by_req_id for {list(updates_map.keys())}")
                 for req_id, upd in updates_map.items():
                     if not isinstance(upd, dict):
                         continue
                     if req_id not in self.requests:
+                        logger.warning(f"[OMNI] req_id {req_id} not found in requests")
                         continue
                     self._merge_additional_information_update(req_id, upd)
+                    # Debug: 验证更新后的状态
+                    req_state = self.requests.get(req_id)
+                    if req_state:
+                        info = getattr(req_state, "additional_information_cpu", {})
+                        if "thinker_reply_part_per_request" in info:
+                            q = info["thinker_reply_part_per_request"]
+                            if hasattr(q, 'shape'):
+                                logger.debug(f"[OMNI] After update, req={req_id} queue shape: {q.shape}")
         except Exception as e:
             logger.error(
                 f"Error merging for requests:{self.input_batch.req_ids} "
                 f"additional information update: {e}, with the multimodal_outputs "
                 f"as {multimodal_outputs}"
             )
+            import traceback
+            traceback.print_exc()
 
     def _build_mm_inputs_and_overlays(
         self,
@@ -901,18 +930,101 @@ class OmniGPUModelRunner(GPUModelRunner):
         # 先解码 payload，确保 request state 具备 prompt_embeds / additional_information
         self._decode_and_store_request_payloads(scheduler_output)
 
-        (
-            input_ids,
-            inputs_embeds,
-            positions,
-            intermediate_tensors,
-            model_kwargs,
-            ec_connector_output,
-        ) = super()._preprocess(
-            scheduler_output,
-            num_input_tokens,
-            intermediate_tensors,
-        )
+        num_scheduled_tokens = scheduler_output.total_num_scheduled_tokens
+        is_first_rank = get_pp_group().is_first_rank
+        is_encoder_decoder = self.model_config.is_encoder_decoder
+
+        # _prepare_inputs may reorder the batch, so we must gather multi
+        # modal outputs after that to ensure the correct order
+        ec_connector_output = None
+
+        if self.supports_mm_inputs and is_first_rank and not is_encoder_decoder:
+            # Run the multimodal encoder if any.
+            with self.maybe_get_ec_connector_output(
+                scheduler_output,
+                encoder_cache=self.encoder_cache,
+            ) as ec_connector_output:
+                self._execute_mm_encoder(scheduler_output)
+                mm_embeds, is_mm_embed = self._gather_mm_embeddings(scheduler_output)
+
+            # NOTE(woosuk): To unify token ids and soft tokens (vision
+            # embeddings), we always use embeddings (rather than token ids)
+            # as input to the multimodal model, even when the input is text.
+            inputs_embeds_scheduled = self.model.embed_input_ids(
+                self.input_ids.gpu[:num_scheduled_tokens],
+                multimodal_embeddings=mm_embeds,
+                is_multimodal=is_mm_embed,
+            )
+
+            # TODO(woosuk): Avoid the copy. Optimize.
+            self.inputs_embeds.gpu[:num_scheduled_tokens].copy_(inputs_embeds_scheduled)
+
+            input_ids = self.input_ids.gpu[:num_input_tokens]
+            inputs_embeds = self.inputs_embeds.gpu[:num_input_tokens]
+            model_kwargs = {
+                **self._init_model_kwargs(num_scheduled_tokens),
+                **self._extract_mm_kwargs(scheduler_output),
+            }
+        elif self.enable_prompt_embeds and is_first_rank:
+            # Get the input embeddings for the tokens that are not input embeds,
+            # then put them into the appropriate positions.
+            # TODO(qthequartermasterman): Since even when prompt embeds are
+            # enabled, (a) not all requests will use prompt embeds, and (b)
+            # after the initial prompt is processed, the rest of the generated
+            # tokens will be token ids, it is not desirable to have the
+            # embedding layer outside of the CUDA graph all the time. The v0
+            # engine avoids this by "double compiling" the CUDA graph, once
+            # with input_ids and again with inputs_embeds, for all num_tokens.
+            # If a batch only has token ids, then including the embedding layer
+            # in the CUDA graph will be more performant (like in the else case
+            # below).
+            token_ids_idx = (
+                self.is_token_ids.gpu[:num_scheduled_tokens]
+                .nonzero(as_tuple=False)
+                .squeeze(1)
+            )
+            # Some tokens ids may need to become embeds
+            if token_ids_idx.numel() > 0:
+                token_ids = self.input_ids.gpu[token_ids_idx]
+                tokens_to_embeds = self.model.embed_input_ids(input_ids=token_ids)
+                self.inputs_embeds.gpu[token_ids_idx] = tokens_to_embeds
+
+            inputs_embeds = self.inputs_embeds.gpu[:num_input_tokens]
+            model_kwargs = self._init_model_kwargs(num_input_tokens)
+            input_ids = self.input_ids.gpu[:num_input_tokens]
+        else:
+            # For text-only models, we use token ids as input.
+            # While it is possible to use embeddings as input just like the
+            # multimodal models, it is not desirable for performance since
+            # then the embedding layer is not included in the CUDA graph.
+            input_ids = self.input_ids.gpu[:num_input_tokens]
+            inputs_embeds = self.input_ids.gpu[:num_input_tokens]
+            model_kwargs = self._init_model_kwargs(num_input_tokens)
+
+        if self.uses_mrope:
+            positions = self.mrope_positions.gpu[:, :num_input_tokens]
+        elif self.uses_xdrope_dim > 0:
+            positions = self.xdrope_positions.gpu[:, :num_input_tokens]
+        else:
+            positions = self.positions.gpu[:num_input_tokens]
+
+        if is_first_rank:
+            intermediate_tensors = None
+        else:
+            assert intermediate_tensors is not None
+            intermediate_tensors = self.sync_and_slice_intermediate_tensors(
+                num_input_tokens, intermediate_tensors, True
+            )
+
+        if is_encoder_decoder and scheduler_output.scheduled_encoder_inputs:
+            # Run the encoder, just like we do with other multimodal inputs.
+            # For an encoder-decoder model, our processing here is a bit
+            # simpler, because the outputs are just passed to the decoder.
+            # We are not doing any prompt replacement. We also will only
+            # ever have a single encoder input.
+            encoder_outputs = self._execute_mm_encoder(scheduler_output)
+            model_kwargs.update({"encoder_outputs": encoder_outputs})
+
 
         req_ids = self.input_batch.req_ids
         num_scheduled_tokens_np = np.array(
@@ -921,15 +1033,19 @@ class OmniGPUModelRunner(GPUModelRunner):
         )
         self._omni_num_scheduled_tokens_np = num_scheduled_tokens_np
 
+        # 始终收集 additional_information，不仅是 prefill 阶段
+        # _collect_additional_information_for_prefill 用于 prefill 时的 prompt_embeds overlay
+        # 但即使在 decode 阶段，我们也需要设置 per_req_additional_information
+        # 以便 _build_model_kwargs_extra 能正确传递 runtime_additional_information
         per_req_additional_information: dict[str, dict] = {}
         if inputs_embeds is not None:
-            # 仅当 base 路径已经使用 embeddings 输入时才覆盖 prompt_embeds
+            # prefill 阶段：覆盖 prompt_embeds 并收集 additional_information
             per_req_additional_information = self._collect_additional_information_for_prefill(
                 num_scheduled_tokens_np
             )
-            self._omni_per_req_additional_information = per_req_additional_information
-        else:
-            self._omni_per_req_additional_information = per_req_additional_information
+        # 无论是否 prefill，都保存以供 _model_forward 使用
+        # runtime_additional_information 会在 _build_model_kwargs_extra 中从 request state 获取
+        self._omni_per_req_additional_information = per_req_additional_information
 
         return (
             input_ids,
@@ -953,6 +1069,14 @@ class OmniGPUModelRunner(GPUModelRunner):
             self._omni_per_req_additional_information,
             self._omni_num_scheduled_tokens_np,
         )
+        
+        # Debug: 验证 runtime_additional_information 在 decode 阶段是否正确
+        runtime_info = model_kwargs_extra.get("runtime_additional_information", [])
+        if runtime_info:
+            for i, info in enumerate(runtime_info):
+                if info:
+                    logger.debug(f"[OMNI] req[{i}] runtime_additional_information keys: {list(info.keys())}")
+        
         model_output = super()._model_forward(
             input_ids=input_ids,
             positions=positions,

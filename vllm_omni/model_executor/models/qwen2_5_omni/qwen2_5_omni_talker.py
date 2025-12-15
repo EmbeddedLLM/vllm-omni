@@ -24,7 +24,6 @@ from vllm.model_executor.models.utils import (
     WeightsMapper,
     init_vllm_registered_model,
     maybe_prefix,
-    merge_multimodal_embeddings,
 )
 from vllm.multimodal import MULTIMODAL_REGISTRY
 from vllm.sequence import IntermediateTensors
@@ -59,7 +58,7 @@ class Qwen2_5OmniTalkerForConditionalGeneration(
         super().__init__()
         config: Qwen2_5OmniTalkerConfig = vllm_config.model_config.hf_config
         quant_config = vllm_config.quant_config
-
+        self.vllm_config = vllm_config
         self.prefix = prefix
         self.quant_config = quant_config
 
@@ -104,26 +103,24 @@ class Qwen2_5OmniTalkerForConditionalGeneration(
 
         return Sampler()
 
-    def get_input_embeddings(
+    def embed_input_ids(
         self,
         input_ids: torch.Tensor,
-        multimodal_embeddings: Optional[MultiModalEmbeddings] = None,
+        multimodal_embeddings: MultiModalEmbeddings | None = None,
+        *,
+        is_multimodal: torch.Tensor | None = None,
+        handle_oov_mm_token: bool = False,
     ) -> torch.Tensor:
-        inputs_embeds = self.language_model.get_input_embeddings(input_ids)
-        if multimodal_embeddings is not None and len(multimodal_embeddings) != 0:
-            # TODO (ywang96): support overlapping modalitiy embeddings so that
-            # `use_audio_in_video` will work on V1.
-            inputs_embeds = merge_multimodal_embeddings(
-                input_ids,
-                inputs_embeds,
-                multimodal_embeddings,
-                [
-                    self.config.image_token_index,
-                    self.config.video_token_index,
-                    self.config.audio_token_index,
-                ],
-            )
-        return inputs_embeds
+        # This is to satisfy the type checker for each overload
+        if multimodal_embeddings is None or is_multimodal is None:
+            return super().embed_input_ids(input_ids)
+
+        return super().embed_input_ids(
+            input_ids,
+            multimodal_embeddings=multimodal_embeddings,
+            is_multimodal=is_multimodal,
+            handle_oov_mm_token=handle_oov_mm_token,
+        )
 
     def forward(
         self,
@@ -140,7 +137,7 @@ class Qwen2_5OmniTalkerForConditionalGeneration(
             inputs_embeds = None
         elif inputs_embeds is None:
             # for profile_run:
-            inputs_embeds = self.get_input_embeddings(input_ids)
+            inputs_embeds = self.embed_input_ids(input_ids)
 
         input_ids = None
 

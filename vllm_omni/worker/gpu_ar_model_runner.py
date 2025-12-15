@@ -176,60 +176,73 @@ class GPUARModelRunner(OmniGPUModelRunner):
                 sampler=self.sampler,
             )
 
-        multimodal_outputs = getattr(model_output, "multimodal_outputs", None)
-        if self.use_aux_hidden_state_outputs:
-            hidden_states, aux_hidden_states = model_output
-        else:
-            hidden_states = (
-                getattr(model_output, "text_hidden_states", None) or model_output
-            )
-            aux_hidden_states = getattr(model_output, "aux_hidden_states", None)
+        with record_function_or_nullcontext("gpu_model_runner: postprocess"):
 
-        if not self.broadcast_pp_output:
-            if not get_pp_group().is_last_rank:
-                assert isinstance(hidden_states, IntermediateTensors)
-                hidden_states.kv_connector_output = kv_connector_output
-                return hidden_states
-
-            if self.is_pooling_model:
-                output = self._pool(
-                    hidden_states,
-                    num_tokens_padded,
-                    num_scheduled_tokens_np,
-                )
-                output.kv_connector_output = kv_connector_output
-                return output
-
-            sample_hidden_states = hidden_states[logits_indices]
-            logits = self.model.compute_logits(sample_hidden_states)
-        else:
-            assert not self.is_pooling_model
-
-            if not get_pp_group().is_last_rank:
-                all_gather_tensors = {
-                    "residual": not is_residual_scattered_for_sp(
-                        self.vllm_config, num_tokens_padded
-                    )
-                }
-                get_pp_group().send_tensor_dict(
-                    hidden_states.tensors,
-                    all_gather_group=get_tp_group(),
-                    all_gather_tensors=all_gather_tensors,
-                )
-                logits = None
+            if self.use_aux_hidden_state_outputs:
+                # True when EAGLE 3 is used.
+                hidden_states, aux_hidden_states = model_output
             else:
+                # Common case.
+                hidden_states = model_output
+                aux_hidden_states = None
+
+            # hidden_states, multimodal_outputs = self.extract_multimodal_outputs(
+            #     hidden_states
+            # )
+            multimodal_outputs = model_output.multimodal_outputs
+            hidden_states = model_output.text_hidden_states
+            
+            # Debug: 打印 multimodal_outputs 状态
+            if multimodal_outputs is not None:
+                logger.debug(f"[AR] execute_model: multimodal_outputs keys = {list(multimodal_outputs.keys()) if isinstance(multimodal_outputs, dict) else type(multimodal_outputs)}")
+            else:
+                logger.debug("[AR] execute_model: multimodal_outputs is None")
+
+            if not self.broadcast_pp_output:
+                if not get_pp_group().is_last_rank:
+                    assert isinstance(hidden_states, IntermediateTensors)
+                    hidden_states.kv_connector_output = kv_connector_output
+                    return hidden_states
+
+                if self.is_pooling_model:
+                    output = self._pool(
+                        hidden_states,
+                        num_tokens_padded,
+                        num_scheduled_tokens_np,
+                    )
+                    output.kv_connector_output = kv_connector_output
+                    return output
+
                 sample_hidden_states = hidden_states[logits_indices]
                 logits = self.model.compute_logits(sample_hidden_states)
+            else:
+                assert not self.is_pooling_model
 
-            model_output_broadcast_data: dict[str, Any] = {}
-            if logits is not None:
-                model_output_broadcast_data["logits"] = logits.contiguous()
+                if not get_pp_group().is_last_rank:
+                    all_gather_tensors = {
+                        "residual": not is_residual_scattered_for_sp(
+                            self.vllm_config, num_tokens_padded
+                        )
+                    }
+                    get_pp_group().send_tensor_dict(
+                        hidden_states.tensors,
+                        all_gather_group=get_tp_group(),
+                        all_gather_tensors=all_gather_tensors,
+                    )
+                    logits = None
+                else:
+                    sample_hidden_states = hidden_states[logits_indices]
+                    logits = self.model.compute_logits(sample_hidden_states)
 
-            broadcasted = get_pp_group().broadcast_tensor_dict(
-                model_output_broadcast_data, src=len(get_pp_group().ranks) - 1
-            )
-            assert broadcasted is not None
-            logits = broadcasted["logits"]
+                model_output_broadcast_data: dict[str, Any] = {}
+                if logits is not None:
+                    model_output_broadcast_data["logits"] = logits.contiguous()
+
+                broadcasted = get_pp_group().broadcast_tensor_dict(
+                    model_output_broadcast_data, src=len(get_pp_group().ranks) - 1
+                )
+                assert broadcasted is not None
+                logits = broadcasted["logits"]
 
         self.execute_model_state = ExecuteModelState(
             scheduler_output,
@@ -286,19 +299,6 @@ class GPUARModelRunner(OmniGPUModelRunner):
 
         self.input_batch.prev_sampled_token_ids = None
 
-        def propose_draft_token_ids(sampled_token_ids):
-            assert spec_decode_common_attn_metadata is not None
-            with record_function_or_nullcontext("gpu_model_runner: draft"):
-                self._draft_token_ids = self.propose_draft_token_ids(
-                    scheduler_output,
-                    sampled_token_ids,
-                    self.input_batch.sampling_metadata,
-                    hidden_states,
-                    sample_hidden_states,
-                    aux_hidden_states,
-                    spec_decode_metadata,
-                    spec_decode_common_attn_metadata,
-                )
         def propose_draft_token_ids(sampled_token_ids):
             assert spec_decode_common_attn_metadata is not None
             with record_function_or_nullcontext("gpu_model_runner: draft"):
@@ -429,25 +429,23 @@ class GPUARModelRunner(OmniGPUModelRunner):
                 if mm_payload:
                     payload.update(mm_payload)
             pooler_output.append(payload)
-
-        output = OmniModelRunnerOutput(
-            req_ids=req_ids_output_copy,
-            req_id_to_index=req_id_to_index_output_copy,
-            sampled_token_ids=valid_sampled_token_ids,
-            logprobs=logprobs_lists,
-            prompt_logprobs_dict=prompt_logprobs_dict,
-            pooler_output=(
-                pooler_output
-                if self.vllm_config.model_config.engine_output_type != "text"
-                else None
-            ),
-            kv_connector_output=kv_connector_output,
-            num_nans_in_logits=num_nans_in_logits,
-        )
+        with record_function_or_nullcontext("gpu_model_runner: ModelRunnerOutput"):
+            output = OmniModelRunnerOutput(
+                req_ids=req_ids_output_copy,
+                req_id_to_index=req_id_to_index_output_copy,
+                sampled_token_ids=valid_sampled_token_ids,
+                logprobs=logprobs_lists,
+                prompt_logprobs_dict=prompt_logprobs_dict,
+                pooler_output=(pooler_output if self.vllm_config.model_config.engine_output_type != "text" else None),
+                kv_connector_output=kv_connector_output,
+                ec_connector_output=ec_connector_output
+                if self.supports_mm_inputs
+                else None,
+                num_nans_in_logits=num_nans_in_logits,
+            )
 
         if not self.use_async_scheduling:
             return output
-
         with record_function_or_nullcontext(
             "gpu_model_runner: AsyncGPUModelRunnerOutput"
         ):
@@ -459,16 +457,18 @@ class GPUARModelRunner(OmniGPUModelRunner):
                 async_output_copy_stream=self.async_output_copy_stream,
                 vocab_size=self.input_batch.vocab_size,
             )
-
         with record_function_or_nullcontext(
             "gpu_model_runner: set_async_sampled_token_ids"
         ):
+            # Save ref of sampled_token_ids CPU tensor if the batch contains
+            # any requests with sampling params that require output ids.
             self.input_batch.set_async_sampled_token_ids(
                 async_output.sampled_token_ids_cpu,
                 async_output.async_copy_ready_event,
             )
 
         return async_output
+
 
     def _merge_additional_information_update(self, req_id: str, upd: dict) -> None:
         req_state = self.requests.get(req_id)

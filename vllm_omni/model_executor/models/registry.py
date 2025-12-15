@@ -10,7 +10,7 @@ _OMNI_MODELS = {
         "qwen2_5_omni",
         "qwen2_5_omni_talker",
         "Qwen2_5OmniTalkerForConditionalGeneration",
-    ),  # noqa: E501
+    ),
     "Qwen2_5OmniToken2WavModel": (
         "qwen2_5_omni",
         "qwen2_5_omni_token2wav",
