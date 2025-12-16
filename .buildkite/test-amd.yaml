@@ -4,7 +4,7 @@ steps:
   timeout_in_minutes: 15
   agent_pool: mi325_2
   depends_on: image-build
-  mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
+  mirror_hardwares: [amdexperimental, amdtentative]
   grade: Blocking
   source_file_dependencies:
   - ./

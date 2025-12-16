@@ -16,7 +16,7 @@
 {% set docker_image_cpu = "public.ecr.aws/q9t5s3a7/vllm-ci-postmerge-repo:$BUILDKITE_COMMIT-cpu" %}
 {% endif %}
 {% set docker_image_amd = "public.ecr.aws/q9t5s3a7/vllm-ci-test-repo:$BUILDKITE_COMMIT-rocm-omni" %}
-{% set default_working_dir = "/app/vllm-omni/tests" %}
+{% set default_working_dir = "/app/vllm-omni" %}
 {% set hf_home = "/root/.cache/huggingface" %}
 {% set hf_home_efs = "/mnt/efs/hf_cache" %}
 {% set hf_home_fsx = "/fsx/hf_cache" %}

@@ -11,10 +11,16 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from vllm_omni import Omni
+from vllm_omni.utils.platform_utils import is_rocm
 
 os.environ["VLLM_TEST_CLEAN_GPU_MEMORY"] = "1"
 
 models = ["Tongyi-MAI/Z-Image-Turbo", "riverclouds/qwen_image_random"]
+
+if is_rocm():
+    # vLLM V0.11.0 has issue running
+    # riverclouds/qwen_image_random on ROCm
+    models = ["Tongyi-MAI/Z-Image-Turbo"]
 
 
 @pytest.mark.parametrize("model_name", models)
