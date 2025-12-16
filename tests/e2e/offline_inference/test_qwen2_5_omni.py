@@ -12,7 +12,7 @@ from vllm.assets.image import ImageAsset
 from vllm.assets.video import VideoAsset
 from vllm.multimodal.image import convert_image_mode
 
-from vllm_omni.utils.platform_utils import detect_device_type
+from vllm_omni.utils.platform_utils import is_rocm
 
 from .conftest import OmniRunner
 
@@ -21,9 +21,9 @@ models = ["Qwen/Qwen2.5-Omni-3B"]
 # CI stage config optimized for 24GB GPU (L4/RTX3090)
 stage_configs = [str(Path(__file__).parent / "stage_configs" / "qwen2_5_omni_ci.yaml")]
 
-if detect_device_type() != "cuda":
+if is_rocm():
     # ROCm stage config optimized for MI325 GPU
-    stage_configs = [str(Path(__file__).parent / "stage_configs" / detect_device_type() / "qwen2_5_omni_ci.yaml")]
+    stage_configs = [str(Path(__file__).parent / "stage_configs" / "rocm" / "qwen2_5_omni_ci.yaml")]
 
 # Create parameter combinations for model and stage config
 test_params = [(model, stage_config) for model in models for stage_config in stage_configs]

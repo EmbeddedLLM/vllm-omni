@@ -6,8 +6,6 @@ from vllm.platforms import current_platform
 
 def detect_device_type() -> str:
     device_type = getattr(current_platform, "device_type", None)
-    if current_platform.is_rocm():
-        return "rocm"
     if isinstance(device_type, str) and device_type:
         return device_type.lower()
     if torch.cuda.is_available():
@@ -22,7 +20,7 @@ def is_npu() -> bool:
 
 
 def is_rocm() -> bool:
-    return detect_device_type() == "rocm"
+    return current_platform.is_rocm()
 
 
 def get_device_control_env_var() -> str:
