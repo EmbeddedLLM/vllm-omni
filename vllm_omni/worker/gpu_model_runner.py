@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import torch
@@ -210,7 +210,7 @@ class OmniGPUModelRunner(GPUModelRunner):
                                     dt = np.dtype(getattr(entry, "tensor_dtype", "float32"))
                                     arr = np.frombuffer(entry.tensor_data, dtype=dt)
                                     arr = arr.reshape(entry.tensor_shape)
-                                    info_dict[k] = torch.from_numpy(arr)
+                                    info_dict[k] = torch.from_numpy(arr.copy())
                                 else:
                                     info_dict[k] = entry.list_data
                     if info_dict:
@@ -313,7 +313,7 @@ class OmniGPUModelRunner(GPUModelRunner):
         self.input_batch.refresh_metadata()
 
     @torch.inference_mode()
-    def extract_multimodal_outputs(self, hidden_states: Union[torch.Tensor, list[torch.Tensor]]) -> dict:
+    def extract_multimodal_outputs(self, hidden_states: torch.Tensor | list[torch.Tensor]) -> dict:
         if hasattr(self.model, "have_multimodal_outputs") and self.model.have_multimodal_outputs:
             text_hidden_states = hidden_states.text_hidden_states
             multimodal_outputs = hidden_states.multimodal_outputs
@@ -602,108 +602,6 @@ class OmniGPUModelRunner(GPUModelRunner):
         )
         return hidden_states, hidden_states[logit_indices_device]
 
-    # def _preprocess(
-    #     self,
-    #     scheduler_output: "SchedulerOutput",
-    #     num_scheduled_tokens_np: np.ndarray,
-    #     intermediate_tensors: Optional[IntermediateTensors] = None,
-    #     ubatch_slices: Optional[UBatchSlices] = None,
-    #     num_tokens_after_padding: Optional[torch.Tensor] = None,
-    # ) -> tuple[
-    #     int,
-    #     int,
-    #     Optional[torch.Tensor],
-    #     Optional[torch.Tensor],
-    #     Optional[torch.Tensor],
-    #     torch.Tensor,
-    #     Optional[IntermediateTensors],
-    #     dict[str, Any],
-    #     Optional[dict[str, dict]],
-    # ]:
-    #     num_scheduled_tokens = scheduler_output.total_num_scheduled_tokens
-    #     if ubatch_slices:
-    #         assert num_tokens_after_padding is not None
-    #         num_input_tokens = int(num_tokens_after_padding[0].item() * 2)
-    #         self.pad_out_ubatch_slice(ubatch_slices, num_input_tokens)
-    #     elif ubatch_slices is None:
-    #         num_input_tokens = self._get_num_input_tokens(num_scheduled_tokens)
-    #         num_pad, num_tokens_after_padding = self.get_dp_padding(num_input_tokens)
-    #         num_input_tokens += num_pad
-
-    #     # _prepare_inputs may reorder the batch, so we must gather multi
-    #     # modal outputs after that to ensure the correct order
-    #     per_req_additional_information: Optional[dict[str, dict]] = None
-    #     if self.supports_mm_inputs and get_pp_group().is_first_rank and not self.model_config.is_encoder_decoder:
-    #         # Build multimodal inputs and overlay prompt embeds; collect per-request info
-    #         per_req_additional_information = self._build_mm_inputs_and_overlays(
-    #             scheduler_output, num_scheduled_tokens, num_scheduled_tokens_np
-    #         )
-
-    #         input_ids = self.input_ids.gpu[:num_input_tokens]
-    #         inputs_embeds = self.inputs_embeds.gpu[:num_input_tokens]
-    #         model_kwargs = {
-    #             **self._init_model_kwargs(num_scheduled_tokens),
-    #             **self._extract_mm_kwargs(scheduler_output),
-    #         }
-    #     elif self.enable_prompt_embeds and get_pp_group().is_first_rank:
-    #         # Get the input embeddings for the tokens that are not input embeds,
-    #         # then put them into the appropriate positions.
-    #         # TODO(qthequartermasterman): Since even when prompt embeds are
-    #         # enabled, (a) not all requests will use prompt embeds, and (b)
-    #         # after the initial prompt is processed, the rest of the generated
-    #         # tokens will be token ids, it is not desirable to have the
-    #         # embedding layer outside of the CUDA graph all the time. The v0
-    #         # engine avoids this by "double compiling" the CUDA graph, once
-    #         # with input_ids and again with inputs_embeds, for all num_tokens.
-    #         # If a batch only has token ids, then including the embedding layer
-    #         # in the CUDA graph will be more performant (like in the else case
-    #         # below).
-    #         token_ids_idx = self.is_token_ids.gpu[:num_scheduled_tokens].nonzero(as_tuple=False).squeeze(1)
-    #         # Some tokens ids may need to become embeds
-    #         if token_ids_idx.numel() > 0:
-    #             token_ids = self.input_ids.gpu[token_ids_idx]
-    #             tokens_to_embeds = self.model.get_input_embeddings(input_ids=token_ids)
-    #             self.inputs_embeds.gpu[token_ids_idx] = tokens_to_embeds
-
-    #         inputs_embeds = self.inputs_embeds.gpu[:num_input_tokens]
-    #         model_kwargs = self._init_model_kwargs(num_input_tokens)
-    #         input_ids = None
-    #     else:
-    #         # For text-only models, we use token ids as input.
-    #         # While it is possible to use embeddings as input just like the
-    #         # multimodal models, it is not desirable for performance since
-    #         # then the embedding layer is not included in the CUDA graph.
-    #         input_ids = self.input_ids.gpu[:num_input_tokens]
-    #         inputs_embeds = None
-    #         model_kwargs = self._init_model_kwargs(num_input_tokens)
-    #     if self.uses_mrope:
-    #         positions = self.mrope_positions.gpu[:, :num_input_tokens]
-    #     else:
-    #         positions = self.positions.gpu[:num_input_tokens]
-
-    #     if get_pp_group().is_first_rank:
-    #         intermediate_tensors = None
-    #     else:
-    #         intermediate_tensors = self.sync_and_slice_intermediate_tensors(
-    #             num_input_tokens, intermediate_tensors, True
-    #         )
-
-    #     if self.model_config.is_encoder_decoder and scheduler_output.scheduled_encoder_inputs:
-    #         encoder_inputs = self._extract_encoder_inputs(scheduler_output)
-    #         model_kwargs.update(encoder_inputs)
-
-    #     return (
-    #         num_scheduled_tokens,
-    #         num_input_tokens,
-    #         num_tokens_after_padding,
-    #         input_ids,
-    #         inputs_embeds,
-    #         positions,
-    #         intermediate_tensors,
-    #         model_kwargs,
-    #         per_req_additional_information,
-    #     )
-
     def _decode_and_store_request_payloads(self, scheduler_output: "SchedulerOutput") -> None:
         """Decode per-request prompt_embeds and additional_information for newly
         scheduled requests and store them to CPU in the request state.
@@ -730,7 +628,7 @@ class OmniGPUModelRunner(GPUModelRunner):
                             dt = np.dtype(getattr(payload_pe, "dtype", "float32"))
                             arr = np.frombuffer(data, dtype=dt)
                             arr = arr.reshape(shape)
-                            pe_cpu = torch.from_numpy(arr)
+                            pe_cpu = torch.from_numpy(arr.copy())
                 if pe_cpu is not None and req_id in self.requests:
                     setattr(self.requests[req_id], "prompt_embeds_cpu", pe_cpu)
                 # additional_information
@@ -750,7 +648,7 @@ class OmniGPUModelRunner(GPUModelRunner):
                                     dt = np.dtype(getattr(entry, "tensor_dtype", "float32"))
                                     arr = np.frombuffer(tensor_data, dtype=dt)
                                     arr = arr.reshape(getattr(entry, "tensor_shape", ()))
-                                    info_dict[k] = torch.from_numpy(arr)
+                                    info_dict[k] = torch.from_numpy(arr.copy())
                                 else:
                                     info_dict[k] = getattr(entry, "list_data", None)
                     if info_dict and req_id in self.requests:
@@ -786,7 +684,7 @@ class OmniGPUModelRunner(GPUModelRunner):
 
     def _build_model_kwargs_extra(
         self,
-        per_req_additional_information: Optional[dict[str, dict]],
+        per_req_additional_information: dict[str, dict] | None,
         num_scheduled_tokens_np,
     ) -> dict:
         """Build extra keyword arguments passed to the model for this step, including:

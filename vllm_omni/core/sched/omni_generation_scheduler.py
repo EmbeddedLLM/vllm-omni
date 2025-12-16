@@ -1,6 +1,5 @@
 import time
 from collections import defaultdict
-from typing import Optional
 
 from vllm.v1.core.kv_cache_manager import KVCacheBlocks
 from vllm.v1.core.sched.request_queue import create_request_queue

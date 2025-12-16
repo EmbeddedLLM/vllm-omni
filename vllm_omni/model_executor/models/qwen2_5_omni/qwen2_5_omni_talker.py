@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from functools import cached_property
-from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -126,10 +125,10 @@ class Qwen2_5OmniTalkerForConditionalGeneration(
         self,
         input_ids: torch.Tensor = None,
         positions: torch.Tensor = None,
-        intermediate_tensors: Optional[IntermediateTensors] = None,
-        inputs_embeds: Optional[torch.Tensor] = None,
+        intermediate_tensors: IntermediateTensors | None = None,
+        inputs_embeds: torch.Tensor | None = None,
         **kwargs: object,
-    ) -> Union[torch.Tensor, IntermediateTensors]:
+    ) -> torch.Tensor | IntermediateTensors:
         assert input_ids is not None or inputs_embeds is not None, "input_ids or inputs_embeds must be provided"
         # forward_context: ForwardContext = get_forward_context()  # unused variable
 
@@ -155,7 +154,7 @@ class Qwen2_5OmniTalkerForConditionalGeneration(
             logits[..., bos_id] = -1e9
         return logits
 
-    def compute_logits(self, hidden_states: torch.Tensor) -> Optional[torch.Tensor]:
+    def compute_logits(self, hidden_states: torch.Tensor) -> torch.Tensor | None:
         logits = self.language_model.compute_logits(hidden_states)
         logits = self.bad_word_processor(logits)
         return logits
@@ -164,7 +163,7 @@ class Qwen2_5OmniTalkerForConditionalGeneration(
         self,
         logits: torch.Tensor,
         sampling_metadata: SamplingMetadata,
-    ) -> Optional[SamplerOutput]:
+    ) -> SamplerOutput | None:
         return self.language_model.sample(logits, sampling_metadata)
 
     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:

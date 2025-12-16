@@ -37,8 +37,8 @@ stage_args:
 
   - stage_id: 1
     runtime:
-       devices: "1"
-       max_batch_size: 1
+      devices: "1"
+      max_batch_size: 1
     engine_args:
        model_stage: talker
        model_arch: Qwen3OmniMoeForConditionalGeneration

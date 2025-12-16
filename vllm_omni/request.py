@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Callable, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from vllm.v1.request import Request
 from vllm.v1.structured_output.request import StructuredOutputRequest
@@ -25,16 +26,16 @@ class OmniRequest(Request):
 
     def __init__(
         self,
-        prompt_embeds: Optional[PromptEmbedsPayload] = None,
-        additional_information: Optional[AdditionalInformationPayload] = None,
+        prompt_embeds: PromptEmbedsPayload | None = None,
+        additional_information: AdditionalInformationPayload | None = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         # Serialized prompt embeddings payload (optional)
-        self.prompt_embeds: Optional[PromptEmbedsPayload] = prompt_embeds
+        self.prompt_embeds: PromptEmbedsPayload | None = prompt_embeds
         # Serialized additional information payload (optional)
-        self.additional_information: Optional[AdditionalInformationPayload] = additional_information
+        self.additional_information: AdditionalInformationPayload | None = additional_information
 
     @classmethod
     def from_engine_core_request(

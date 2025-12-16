@@ -189,13 +189,13 @@ class OmniInputProcessor(InputProcessor):
         encoder_inputs, decoder_inputs = split_enc_dec_inputs(processed_inputs)
         self._validate_model_inputs(encoder_inputs, decoder_inputs)
 
-        # Mypy can be conservative for TypedDict unions; normalize access.
-        if decoder_inputs["type"] == "embeds":
-            prompt_token_ids = None
-            prompt_embeds = decoder_inputs["prompt_embeds"]
-        else:
-            prompt_token_ids = decoder_inputs["prompt_token_ids"]
-            prompt_embeds = None
+        # Mypy does not always properly infer the types of some elements of
+        # discriminated unions of TypedDicts, because of how it handles
+        # inheritance of TypedDict. If we explicitly extract the items we want
+        # we can avoid type errors from using `dict.get` later in the method.
+        prompt_str: str | None = None if decoder_inputs["type"] == "embeds" else decoder_inputs.get("prompt")
+        prompt_token_ids = decoder_inputs["prompt_token_ids"] if decoder_inputs["type"] != "embeds" else None
+        prompt_embeds = decoder_inputs["prompt_embeds"] if decoder_inputs["type"] == "embeds" else None
 
         sampling_params = None
         pooling_params = None
@@ -242,8 +242,8 @@ class OmniInputProcessor(InputProcessor):
 
         # Serialize prompt_embeds and additional_information if provided
         # (direct-transfer path)
-        prompt_embeds_payload: Optional[PromptEmbedsPayload] = None
-        additional_information_payload: Optional[AdditionalInformationPayload] = None
+        prompt_embeds_payload: PromptEmbedsPayload | None = None
+        additional_information_payload: AdditionalInformationPayload | None = None
         if "prompt_embeds" in decoder_inputs:  # type: ignore[operator]
             pe: torch.Tensor = decoder_inputs["prompt_embeds"]  # type: ignore[index]
             if pe.ndim != 2:
