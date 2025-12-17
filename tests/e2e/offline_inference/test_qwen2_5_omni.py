@@ -37,7 +37,6 @@ test_params = [(model, stage_config) for model in models]
 def test_mixed_modalities_to_audio(omni_runner: type[OmniRunner], test_config: tuple[str, str]) -> None:
     """Test processing audio, image, and video together, generating audio output."""
     model, stage_config_path = test_config
-    print(f"Running test for model: {model} and stage config: {stage_config_path}")
     with omni_runner(model, seed=42, stage_configs_path=stage_config_path) as runner:
         # Prepare multimodal inputs
         question = "What is recited in the audio? What is in this image? Describe the video briefly."
