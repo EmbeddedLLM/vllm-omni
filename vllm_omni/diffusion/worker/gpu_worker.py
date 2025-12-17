@@ -13,7 +13,7 @@ from vllm.distributed.parallel_state import (
     initialize_model_parallel,
 )
 from vllm.logger import init_logger
-from vllm.utils import DeviceMemoryProfiler, GiB_bytes
+from vllm.utils.mem_utils import DeviceMemoryProfiler, GiB_bytes
 
 from vllm_omni.diffusion.cache.selector import get_cache_backend
 from vllm_omni.diffusion.data import (
