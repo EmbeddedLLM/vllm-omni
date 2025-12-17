@@ -5,21 +5,29 @@ from pathlib import Path
 import pytest
 import torch
 
+from vllm_omni.utils.platform_utils import is_npu, is_rocm
+
 # ruff: noqa: E402
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from vllm_omni import Omni
-from vllm_omni.utils.platform_utils import is_rocm
 
 os.environ["VLLM_TEST_CLEAN_GPU_MEMORY"] = "1"
 
+
 models = ["Tongyi-MAI/Z-Image-Turbo", "riverclouds/qwen_image_random"]
 
-if is_rocm():
-    # vLLM V0.11.0 has issue running
-    # riverclouds/qwen_image_random on ROCm
+# NPU still can't run Tongyi-MAI/Z-Image-Turbo properly
+# Modelscope can't find riverclouds/qwen_image_random
+# TODO: When NPU support is ready, remove this branch.
+if is_npu():
+    models = ["Qwen/Qwen-Image"]
+elif is_rocm():
+    # TODO: When ROCm support is ready, remove this branch.
+    # vLLM V0.11.0 has issues running riverclouds/qwen_image_random
+    # on ROCm
     models = ["Tongyi-MAI/Z-Image-Turbo"]
 
 
