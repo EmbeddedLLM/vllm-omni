@@ -6,8 +6,6 @@ steps:
   depends_on: amd-build
   mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
   grade: Blocking
-  source_file_dependencies:
-  - ./
   commands:
     - export GPU_ARCHS=gfx942
     - export MIOPEN_FIND_MODE=FAST
@@ -22,8 +20,7 @@ steps:
   agent_pool: mi325_1
   depends_on: amd-build
   mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
-  source_file_dependencies:
-  - ./
+  grade: Blocking
   commands:
     - export GPU_ARCHS=gfx942
     - export VLLM_LOGGING_LEVEL=DEBUG
@@ -40,8 +37,7 @@ steps:
   agent_pool: mi325_2
   depends_on: amd-build
   mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
-  source_file_dependencies:
-  - ./
+  grade: Blocking
   commands:
     - export GPU_ARCHS=gfx942
     - export VLLM_LOGGING_LEVEL=DEBUG
