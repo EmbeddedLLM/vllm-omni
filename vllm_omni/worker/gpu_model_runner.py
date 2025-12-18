@@ -875,7 +875,7 @@ class OmniGPUModelRunner(GPUModelRunner):
             # multimodal models, it is not desirable for performance since
             # then the embedding layer is not included in the CUDA graph.
             input_ids = self.input_ids.gpu[:num_input_tokens]
-            inputs_embeds = self.input_ids.gpu[:num_input_tokens]
+            inputs_embeds = None
             model_kwargs = self._init_model_kwargs(num_input_tokens)
 
         if self.uses_mrope:
@@ -909,16 +909,16 @@ class OmniGPUModelRunner(GPUModelRunner):
         )
         self._omni_num_scheduled_tokens_np = num_scheduled_tokens_np
 
-        # 始终收集 additional_information，不仅是 prefill 阶段
-        # _collect_additional_information_for_prefill 用于 prefill 时的 prompt_embeds overlay
-        # 但即使在 decode 阶段，我们也需要设置 per_req_additional_information
-        # 以便 _build_model_kwargs_extra 能正确传递 runtime_additional_information
+        # Always collect additional_information, not only in prefill.
+        # _collect_additional_information_for_prefill handles prompt_embeds overlay during prefill,
+        # but even in decode we need per_req_additional_information so that
+        # _build_model_kwargs_extra can pass runtime_additional_information correctly.
         per_req_additional_information: dict[str, dict] = {}
         if inputs_embeds is not None:
-            # prefill 阶段：覆盖 prompt_embeds 并收集 additional_information
+            # Prefill: overlay prompt_embeds and collect additional_information
             per_req_additional_information = self._collect_additional_information_for_prefill(num_scheduled_tokens_np)
-        # 无论是否 prefill，都保存以供 _model_forward 使用
-        # runtime_additional_information 会在 _build_model_kwargs_extra 中从 request state 获取
+        # Save for _model_forward regardless of prefill; runtime_additional_information
+        # will be fetched from request state inside _build_model_kwargs_extra
         self._omni_per_req_additional_information = per_req_additional_information
 
         return (
@@ -938,7 +938,7 @@ class OmniGPUModelRunner(GPUModelRunner):
         inputs_embeds: torch.Tensor | None = None,
         **model_kwargs: dict[str, Any],
     ):
-        """在前向时注入 omni 额外 kwargs，并缓存模型输出（供 AR runner 使用）。"""
+        """Inject omni-specific kwargs into forward and cache model output"""
         model_kwargs_extra = self._build_model_kwargs_extra(
             self._omni_per_req_additional_information,
             self._omni_num_scheduled_tokens_np,
@@ -958,6 +958,6 @@ class OmniGPUModelRunner(GPUModelRunner):
             **model_kwargs,
             **model_kwargs_extra,
         )
-        # 缓存模型输出以便后续 sample_tokens 使用多模态结果。
+        # Cache model output so later sample_tokens can consume multimodal results.
         self._omni_last_model_output = model_output
         return model_output

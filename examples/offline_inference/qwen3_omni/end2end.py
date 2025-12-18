@@ -274,7 +274,7 @@ def parse_args():
         "--query-type",
         "-q",
         type=str,
-        default="mixed_modalities",
+        default="use_video",
         choices=query_map.keys(),
         help="Query type.",
     )
