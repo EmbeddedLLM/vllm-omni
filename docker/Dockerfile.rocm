@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=rocm/vllm-dev:nightly_main_20251005
+ARG BASE_IMAGE=rocm/vllm-dev:nightly_main_20251204
 FROM ${BASE_IMAGE}
 
 ARG COMMON_WORKDIR=/app
