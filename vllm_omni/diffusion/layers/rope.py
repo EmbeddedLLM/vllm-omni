@@ -62,12 +62,14 @@ class RotaryEmbedding(CustomOp):
         cos: torch.Tensor,
         sin: torch.Tensor,
     ) -> torch.Tensor:
+        from vllm.vllm_flash_attn.layers.rotary import apply_rotary_emb
+
         if cos.dim() == 3:
             # (B, S, D/2) -> (S, D/2)
             cos = cos[0]
             sin = sin[0]
 
-        return self.triton_rotary_emb(
+        return apply_rotary_emb(
             x,
             cos,
             sin,
