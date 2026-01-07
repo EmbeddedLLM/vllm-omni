@@ -4,7 +4,7 @@ steps:
   timeout_in_minutes: 15
   agent_pool: mi325_2
   depends_on: amd-build
-  mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
+  mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
     - export GPU_ARCHS=gfx942
@@ -20,7 +20,7 @@ steps:
   timeout_in_minutes: 15
   agent_pool: mi325_1
   depends_on: amd-build
-  mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
+  mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
     - export GPU_ARCHS=gfx942
@@ -39,18 +39,30 @@ steps:
   timeout_in_minutes: 15
   agent_pool: mi325_2
   depends_on: amd-build
-  mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
+  mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
     - export MIOPEN_DEBUG_CONV_DIRECT=0
     - export MIOPEN_DEBUG_CONV_GEMM=0
     - pytest -s -v tests/e2e/offline_inference/test_sequence_parallel.py
 
+
+- label: "Diffusion GPU Worker Test"
+  timeout_in_minutes: 20
+  agent_pool: mi325_2
+  depends_on: amd-build
+  mirror_hardwares: [amdproduction]
+  grade: Blocking
+  commands:
+    - export MIOPEN_DEBUG_CONV_DIRECT=0
+    - export MIOPEN_DEBUG_CONV_GEMM=0
+    - pytest -s -v tests/diffusion/test_gpu_worker.py
+
 - label: "Omni Model Test Qwen2-5-Omni"
   timeout_in_minutes: 15
   agent_pool: mi325_2
   depends_on: amd-build
-  mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
+  mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
     - export GPU_ARCHS=gfx942
@@ -68,7 +80,7 @@ steps:
   timeout_in_minutes: 15
   agent_pool: mi325_2
   depends_on: amd-build
-  mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
+  mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
     - export VLLM_LOGGING_LEVEL=DEBUG
@@ -81,7 +93,7 @@ steps:
   timeout_in_minutes: 15
   agent_pool: mi325_1
   depends_on: amd-build
-  mirror_hardwares: [amdexperimental, amdproduction, amdtentative]
+  mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
     - export GPU_ARCHS=gfx942
