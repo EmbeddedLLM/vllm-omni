@@ -52,7 +52,7 @@ bash
 
 # --8<-- [start:pre-built-images]
 
-vLLM-Omni offers an official docker image for deployment. These images are built on top of vLLM docker images and available on Docker Hub as [vllm/vllm-omni-rocm](https://hub.docker.com/r/vllm/vllm-omni-rocm/tags). The version of vLLM-Omni indicates which release of vLLM it is based on.
+vLLM-Omni offers an official docker image for deployment. These images are built on top of vLLM docker images and available on Docker Hub as [vllm/vllm-omni-rocm](https://hub.docker.com/r/vllm/vllm-omni-rocm/tags). The version of vLLM-Omni indicates which release of vLLM it is based on. Current docker image is pre-built for `gfx942` and `gfx950`. For other GPU arch, you have to build the docker images yourself from `docker/Dockerfile.rocm`.
 
 #### Launch vLLM-Omni Server
 Here's an example deployment command that has been verified on 2 x MI300's:
