@@ -64,4 +64,3 @@ vLLM-Omni is a Python library that supports the following GPU variants. The libr
 === "AMD ROCm"
 
     --8<-- "docs/getting_started/installation/gpu/rocm.inc.md:build-docker"
-
