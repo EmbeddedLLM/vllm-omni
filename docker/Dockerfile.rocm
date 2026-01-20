@@ -87,6 +87,7 @@ RUN python3 -m pip uninstall -y vllm && rm -rf vllm &&\
 # -----------------------
 # Test vLLM image
 FROM base AS final
+ARG COMMON_WORKDIR
 RUN python3 -m pip install --upgrade pip
 
 # Install vLLM using uv (inherited from base stage)
