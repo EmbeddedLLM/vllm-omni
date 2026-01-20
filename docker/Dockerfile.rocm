@@ -1,7 +1,15 @@
 ARG BASE_IMAGE=rocm/vllm-dev:nightly_main_20251205
-FROM ${BASE_IMAGE}
-
 ARG COMMON_WORKDIR=/app
+
+# Sccache configuration (only used in release pipeline)
+ARG USE_SCCACHE
+ARG SCCACHE_DOWNLOAD_URL
+ARG SCCACHE_BUCKET_NAME=vllm-build-sccache
+ARG SCCACHE_REGION_NAME=us-west-2
+ARG SCCACHE_S3_NO_CREDENTIALS=0
+
+FROM ${BASE_IMAGE} AS base
+
 ARG VLLM_VERSION=v0.12.0
 ARG PYTORCH_ROCM_ARCH="gfx942;gfx950"
 
@@ -13,22 +21,91 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Step 2: Reinstall vllm from source
+# Remove sccache only if not using sccache (it exists in base image from Dockerfile.rocm_base)
+ARG USE_SCCACHE
+RUN if [ "$USE_SCCACHE" != "1" ]; then \
+        apt-get purge -y sccache || true; \
+        python3 -m pip uninstall -y sccache || true; \
+        rm -f "$(which sccache)" || true; \
+    fi
+
+# Install UV
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
+
+# This timeout (in seconds) is necessary when installing some dependencies via uv since it's likely to time out
+# Reference: https://github.com/astral-sh/uv/pull/1694
+ENV UV_HTTP_TIMEOUT=500
+ENV UV_INDEX_STRATEGY="unsafe-best-match"
+# Use copy mode to avoid hardlink failures with Docker cache mounts
+ENV UV_LINK_MODE=copy
+
+# Install sccache if USE_SCCACHE is enabled (for release builds)
+ARG USE_SCCACHE
+ARG SCCACHE_DOWNLOAD_URL
+ARG SCCACHE_BUCKET_NAME
+ARG SCCACHE_REGION_NAME
+ARG SCCACHE_S3_NO_CREDENTIALS
+RUN if [ "$USE_SCCACHE" = "1" ]; then \
+        if command -v sccache >/dev/null 2>&1; then \
+            echo "sccache already installed, skipping installation"; \
+            sccache --version; \
+        else \
+            echo "Installing sccache..." \
+            && SCCACHE_ARCH="x86_64" \
+            && SCCACHE_VERSION="v0.8.1" \
+            && SCCACHE_DL_URL="${SCCACHE_DOWNLOAD_URL:-https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/sccache-${SCCACHE_VERSION}-${SCCACHE_ARCH}-unknown-linux-musl.tar.gz}" \
+            && curl -L -o /tmp/sccache.tar.gz ${SCCACHE_DL_URL} \
+            && tar -xzf /tmp/sccache.tar.gz -C /tmp \
+            && mv /tmp/sccache-${SCCACHE_VERSION}-${SCCACHE_ARCH}-unknown-linux-musl/sccache /usr/bin/sccache \
+            && chmod +x /usr/bin/sccache \
+            && rm -rf /tmp/sccache.tar.gz /tmp/sccache-${SCCACHE_VERSION}-${SCCACHE_ARCH}-unknown-linux-musl \
+            && sccache --version; \
+        fi; \
+    fi
+
+# Set sccache environment variables only when USE_SCCACHE=1
+# This prevents S3 config from leaking into images when sccache is not used
+ARG USE_SCCACHE
+ENV SCCACHE_BUCKET=${USE_SCCACHE:+${SCCACHE_BUCKET_NAME}}
+ENV SCCACHE_REGION=${USE_SCCACHE:+${SCCACHE_REGION_NAME}}
+ENV SCCACHE_S3_NO_CREDENTIALS=${USE_SCCACHE:+${SCCACHE_S3_NO_CREDENTIALS}}
+ENV SCCACHE_IDLE_TIMEOUT=${USE_SCCACHE:+0}
+
+# Step 2: Reinstall vllm from source, it will automatically use sccache
+# if sccache is installed.
+FROM base AS build_vllm
+ARG VLLM_VERSION
+ARG PYTORCH_ROCM_ARCH
 RUN python3 -m pip uninstall -y vllm && rm -rf vllm &&\
     git clone https://github.com/vllm-project/vllm.git && \
     cd vllm && \
     git checkout ${VLLM_VERSION} && \
     python3 -m pip install -r requirements/rocm.txt && \
     python3 setup.py clean --all && \
-    PYTORCH_ROCM_ARCH=${PYTORCH_ROCM_ARCH} python3 setup.py develop && \
-    cd ../ && \
-    rm -rf vllm/.git
+    PYTORCH_ROCM_ARCH=${PYTORCH_ROCM_ARCH} python3 setup.py bdist_wheel --dist-dir=dist
+
+# -----------------------
+# Test vLLM image
+FROM base AS final
+RUN python3 -m pip install --upgrade pip
+
+# Install vLLM using uv (inherited from base stage)
+# Note: No -U flag to avoid upgrading PyTorch ROCm to CUDA version
+# Uninstall vllm before reinstalling to ensure the locally built wheel takes precedence
+# over any vllm that may have been installed as a dependency of requirements
+RUN --mount=type=bind,from=build_vllm,src=/app/vllm,target=/install \
+    --mount=type=cache,target=/root/.cache/uv \
+    cd /install \
+    && uv pip install --system -r requirements/rocm.txt \
+    && uv pip install --system -r requirements/rocm-test.txt \
+    && pip uninstall -y vllm \
+    && uv pip install --system dist/*.whl
 
 RUN mkdir -p ${COMMON_WORKDIR}/vllm-omni
 
 # Step 3: Copy vllm-omni code and install without uv
 COPY . ${COMMON_WORKDIR}/vllm-omni
-RUN cd ${COMMON_WORKDIR}/vllm-omni && python3 -m pip install --no-cache-dir ".[dev]"
+RUN cd ${COMMON_WORKDIR}/vllm-omni && uv pip install --python "$(python3 -c 'import sys; print(sys.executable)')" --no-cache-dir ".[dev]"
 
 # Create python symlink
 # `GPU_ARCHS` is an environment variable that is used to set the GPU archs for the AITER.
@@ -39,4 +116,8 @@ RUN cd ${COMMON_WORKDIR}/vllm-omni && python3 -m pip install --no-cache-dir ".[d
 ENV GPU_ARCHS=${AITER_ROCM_ARCH}
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
-ENTRYPOINT []
+CMD ["/bin/bash"]
+
+#Set entrypoint for vllm-omni-rocm official images
+FROM final as vllm-omni-openai
+ENTRYPOINT ["vllm", "serve"]

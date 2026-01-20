@@ -14,7 +14,7 @@
         soft_fail: false
         commands:
           - "source .buildkite/scripts/docker_login_ecr_public.sh && safe_docker_login_ecr_public"
-          - "docker build -f docker/Dockerfile.rocm -t {{ docker_image_amd }} --progress plain ."
+          - "docker build -f docker/Dockerfile.rocm --target final -t {{ docker_image_amd }} --progress plain --build-arg USE_SCCACHE=1 --build-arg SCCACHE_BUCKET_NAME=vllm-build-sccache --build-arg SCCACHE_REGION_NAME=us-west-2 --build-arg SCCACHE_S3_NO_CREDENTIALS=0 ."
           - "docker push {{ docker_image_amd }}"
         key: "amd-build"
         env:
