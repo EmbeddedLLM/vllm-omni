@@ -88,6 +88,7 @@ docker run --rm \
   -v <path/to/model>:/app/model \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   --env "HF_TOKEN=$HF_TOKEN" \
+  -p 8091:8091 \
   vllm/vllm-omni-rocm:v0.14.0 \
   --model Qwen/Qwen3-Omni-30B-A3B-Instruct --omni --port 8091
 ```
