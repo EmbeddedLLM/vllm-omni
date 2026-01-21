@@ -37,8 +37,7 @@ DOCKER_BUILDKIT=1 docker build \
 ##### Launch with OpenAI API Server
 
 ```
-docker run --rm -it \
---network=host \
+docker run --rm \
 --group-add=video \
 --ipc=host \
 --cap-add=SYS_PTRACE \
@@ -79,8 +78,7 @@ vLLM-Omni offers an official docker image for deployment. These images are built
 #### Launch vLLM-Omni Server
 Here's an example deployment command that has been verified on 2 x MI300's:
 ```bash
-docker run -it \
-  --network=host \
+docker run --rm \
   --group-add=video \
   --ipc=host \
   --cap-add=SYS_PTRACE \
@@ -97,7 +95,7 @@ docker run -it \
 #### Launch an interactive terminal with prebuilt docker image.
 If you want to run in dev environment you can launch the docker image as follows:
 ```bash
-docker run -it \
+docker run --rm -it \
   --network=host \
   --group-add=video \
   --ipc=host \
