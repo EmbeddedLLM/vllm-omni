@@ -23,10 +23,12 @@ RUN cd ${COMMON_WORKDIR}/vllm-omni && uv pip install --python "$(python3 -c 'imp
 # The AITER version used in this dockerfile has issues with handling
 # the GPU archs of MI325X (CI machine) correctly. So we manually set the GPU archs here.
 # We reuse AITER_ROCM_ARCH from the base image to avoid duplication.
-ENV GPU_ARCHS=${AITER_ROCM_ARCH}
+# ENV GPU_ARCHS=${AITER_ROCM_ARCH}
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 CMD ["/bin/bash"]
+
+ENTRYPOINT []
 
 #Set entrypoint for vllm-openai official images
 FROM final AS vllm-openai
