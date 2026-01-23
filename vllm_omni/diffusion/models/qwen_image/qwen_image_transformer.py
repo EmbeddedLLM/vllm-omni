@@ -534,17 +534,18 @@ class QwenImageCrossAttention(nn.Module):
         txt_cos = txt_freqs.real.to(txt_query.dtype)
         txt_sin = txt_freqs.imag.to(txt_query.dtype)
 
-        img_qk = torch.cat([img_query, img_key], dim=0)
-        img_qk = self.rope(img_qk, img_cos, img_sin)
-        img_query, img_key = torch.chunk(img_qk, 2, dim=0)
-        txt_qk = torch.cat([txt_query, txt_key], dim=0)
-        txt_qk = self.rope(txt_qk, txt_cos, txt_sin)
-        txt_query, txt_key = torch.chunk(txt_qk, 2, dim=0)
-
         seq_len_txt = encoder_hidden_states.shape[1]
         joint_query = torch.cat([txt_query, img_query], dim=1)
         joint_key = torch.cat([txt_key, img_key], dim=1)
         joint_value = torch.cat([txt_value, img_value], dim=1)
+
+        # This leverages the same dtype used by txt_qkv and img_qkv,
+        # since the value tensors can be concatenated.
+        joint_qk = torch.cat([joint_query, joint_key], dim=0)
+        joint_cos = torch.cat([txt_cos, img_cos], dim=0)
+        joint_sin = torch.cat([txt_sin, img_sin], dim=0)
+        joint_qk = self.rope(joint_qk, joint_cos, joint_sin)
+        joint_query, joint_key = torch.chunk(joint_qk, 2, dim=0)
 
         if (
             self.parallel_config is not None
