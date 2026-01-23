@@ -534,10 +534,12 @@ class QwenImageCrossAttention(nn.Module):
         txt_cos = txt_freqs.real.to(txt_query.dtype)
         txt_sin = txt_freqs.imag.to(txt_query.dtype)
 
-        img_query = self.rope(img_query, img_cos, img_sin)
-        img_key = self.rope(img_key, img_cos, img_sin)
-        txt_query = self.rope(txt_query, txt_cos, txt_sin)
-        txt_key = self.rope(txt_key, txt_cos, txt_sin)
+        img_qk = torch.cat([img_query, img_key], dim=0)
+        img_qk = self.rope(img_qk, img_cos, img_sin)
+        img_query, img_key = torch.chunk(img_qk, 2, dim=0)
+        txt_qk = torch.cat([txt_query, txt_key], dim=0)
+        txt_qk = self.rope(txt_qk, txt_cos, txt_sin)
+        txt_query, txt_key = torch.chunk(txt_qk, 2, dim=0)
 
         seq_len_txt = encoder_hidden_states.shape[1]
         joint_query = torch.cat([txt_query, img_query], dim=1)
