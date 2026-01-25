@@ -84,9 +84,16 @@ def get_attn_backend(head_size: int) -> type[AttentionBackend]:
     elif detect_device_type() == "cuda" and is_rocm():
         from vllm._aiter_ops import is_aiter_found_and_supported
 
+        compute_capability = torch.cuda.get_device_capability()
+        major, minor = compute_capability
+
         # Choose to enable this by default on ROCm
         # Whenever possible as it is the fastest backend
-        if is_aiter_found_and_supported():
+        # is_aiter_found_and_supported() checks if aiter library is found
+        # and is aiter supported on the current platform
+        # aiter currently only is supported on gfx942 and gfx950
+        # https://github.com/vllm-project/vllm/blob/main/vllm/_aiter_ops.py
+        if is_aiter_found_and_supported() and 90 < major * 10 + minor < 100:
             if backend_name is None:
                 backend_name = "FLASH_ATTN"
         else:
