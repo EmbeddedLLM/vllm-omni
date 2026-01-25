@@ -18,9 +18,11 @@ import torch.nn.functional as F
 from vllm_omni.utils.platform_utils import is_rocm
 
 if is_rocm():
-    from vllm._aiter_ops import rocm_aiter_ops
+    from vllm._aiter_ops import is_aiter_found_and_supported
 
-    if rocm_aiter_ops.is_enabled():
+    # Choose to enable this by default on ROCm
+    # Whenever possible as it is the fastest backend
+    if is_aiter_found_and_supported():
         from aiter import flash_attn_func, flash_attn_varlen_func  # noqa: F401
 else:
     from fa3_fwd_interface import flash_attn_func, flash_attn_varlen_func  # noqa: F401

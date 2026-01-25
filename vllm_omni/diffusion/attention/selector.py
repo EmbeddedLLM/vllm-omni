@@ -82,9 +82,11 @@ def get_attn_backend(head_size: int) -> type[AttentionBackend]:
                 )
                 backend_name = "TORCH_SDPA"
     elif detect_device_type() == "cuda" and is_rocm():
-        from vllm._aiter_ops import rocm_aiter_ops
+        from vllm._aiter_ops import is_aiter_found_and_supported
 
-        if rocm_aiter_ops.is_enabled():
+        # Choose to enable this by default on ROCm
+        # Whenever possible as it is the fastest backend
+        if is_aiter_found_and_supported():
             if backend_name is None:
                 backend_name = "FLASH_ATTN"
         else:
