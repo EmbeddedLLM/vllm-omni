@@ -21,9 +21,9 @@ if is_rocm():
     from vllm._aiter_ops import rocm_aiter_ops
 
     if rocm_aiter_ops.is_enabled():
-        pass
+        from aiter import flash_attn_func, flash_attn_varlen_func  # noqa: F401
 else:
-    pass
+    from fa3_fwd_interface import flash_attn_func, flash_attn_varlen_func  # noqa: F401
 
 
 def _index_first_axis(tensor, indices):
