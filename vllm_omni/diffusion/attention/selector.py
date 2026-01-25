@@ -99,8 +99,8 @@ def get_attn_backend(head_size: int) -> type[AttentionBackend]:
         else:
             if backend_name == "FLASH_ATTN":
                 logger.warning(
-                    """Flash Attention requires GPU with compute capability >= 8.0 or < 10.0. "
-                               "Falling back to TORCH_SDPA backend."""
+                    "Flash Attention requires `aiter` library which is only supported "
+                    "on gfx942 and gfx950. Falling back to TORCH_SDPA backend."
                 )
                 backend_name = "TORCH_SDPA"
 
