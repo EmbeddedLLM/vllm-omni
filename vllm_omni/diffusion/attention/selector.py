@@ -81,6 +81,19 @@ def get_attn_backend(head_size: int) -> type[AttentionBackend]:
                                "Falling back to TORCH_SDPA backend."""
                 )
                 backend_name = "TORCH_SDPA"
+    elif detect_device_type() == "cuda" and is_rocm():
+        from vllm._aiter_ops import rocm_aiter_ops
+
+        if rocm_aiter_ops.is_enabled():
+            if backend_name is None:
+                backend_name = "FLASH_ATTN"
+        else:
+            if backend_name == "FLASH_ATTN":
+                logger.warning(
+                    """Flash Attention requires GPU with compute capability >= 8.0 or < 10.0. "
+                               "Falling back to TORCH_SDPA backend."""
+                )
+                backend_name = "TORCH_SDPA"
 
     if backend_name is not None:
         backend_name_upper = backend_name.upper()

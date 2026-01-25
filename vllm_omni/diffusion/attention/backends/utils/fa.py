@@ -15,6 +15,16 @@
 import torch
 import torch.nn.functional as F
 
+from vllm_omni.utils.platform_utils import is_rocm
+
+if is_rocm():
+    from vllm._aiter_ops import rocm_aiter_ops
+
+    if rocm_aiter_ops.is_enabled():
+        pass
+else:
+    pass
+
 
 def _index_first_axis(tensor, indices):
     """
