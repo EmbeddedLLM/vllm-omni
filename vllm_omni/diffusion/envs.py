@@ -184,10 +184,18 @@ class PackagesEnvChecker:
             if "Turing" in gpu_name or "Tesla" in gpu_name or "T4" in gpu_name:
                 return False
             else:
-                from flash_attn import __version__
+                compute_capability = torch.cuda.get_device_capability()
+                major, minor = compute_capability
+                if 80 <= major * 10 + minor < 100:
+                    from fa3_fwd import __version__
 
-                if __version__ < "2.6.0":
-                    raise ImportError("install flash_attn >= 2.6.0")
+                    if __version__ < "2.6.0":
+                        raise ImportError("install fa3_fwd >= 2.6.0")
+                else:
+                    from flash_attn import __version__
+
+                    if __version__ < "2.6.0":
+                        raise ImportError("install flash_attn >= 2.6.0")
                 return True
         except ImportError:
             if not packages_info.get("has_aiter", False):

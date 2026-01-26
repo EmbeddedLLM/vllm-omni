@@ -15,6 +15,13 @@
 import torch
 import torch.nn.functional as F
 
+compute_capability = torch.cuda.get_device_capability()
+major, minor = compute_capability
+if 80 <= major * 10 + minor < 100:
+    from fa3_fwd_interface import flash_attn_func, flash_attn_varlen_func  # noqa: F401
+else:
+    from flash_attn import flash_attn_func, flash_attn_varlen_func  # noqa: F401
+
 
 def _index_first_axis(tensor, indices):
     """
