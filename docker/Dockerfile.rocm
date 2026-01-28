@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=vllm/vllm-openai-rocm:v0.14.0
-FROM ${BASE_IMAGE} AS final
+FROM ${BASE_IMAGE} AS base
 
 ARG COMMON_WORKDIR=/app
 
@@ -23,10 +23,11 @@ RUN uv pip uninstall onnxruntime --system && uv pip install --no-cache-dir onnxr
 
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
-CMD ["/bin/bash"]
+FROM base AS test
 
+CMD ["/bin/bash"]
 ENTRYPOINT []
 
-#Set entrypoint for vllm-openai official images
-FROM final AS vllm-openai
+#Set entrypoint for vllm-omni-openai official images
+FROM base AS vllm-omni-openai
 ENTRYPOINT ["vllm", "serve", "--omni"]

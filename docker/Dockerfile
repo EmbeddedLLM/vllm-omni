@@ -1,6 +1,6 @@
 ARG VLLM_BASE_IMAGE=vllm/vllm-openai
 ARG VLLM_BASE_TAG=v0.14.0
-FROM ${VLLM_BASE_IMAGE}:${VLLM_BASE_TAG}
+FROM ${VLLM_BASE_IMAGE}:${VLLM_BASE_TAG} AS base
 ARG APP_DIR=/workspace/vllm-omni
 WORKDIR ${APP_DIR}
 
@@ -17,4 +17,8 @@ RUN uv pip install --python "$(python3 -c 'import sys; print(sys.executable)')" 
 
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
+FROM base AS test
 ENTRYPOINT []
+
+FROM base AS vllm-omni-openai
+ENTRYPOINT ["vllm", "serve", "--omni"]
