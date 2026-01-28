@@ -41,21 +41,3 @@ steps:
           queue: small_cpu_queue_postmerge
         commands:
           - "bash .buildkite/scripts/annotate-release.sh"
-
-  - group: "Publish wheels"
-    key: "publish-wheels"
-    steps:
-      - block: "Confirm update release wheels to PyPI (experimental, use with caution)?"
-        key: block-upload-release-wheels
-        depends_on:
-          - input-release-version
-          - build-wheels
-
-      - label: "Upload release wheels to PyPI and GitHub"
-        depends_on:
-          - block-upload-release-wheels
-        id: upload-release-wheels
-        agents:
-          queue: small_cpu_queue_postmerge
-        commands:
-          - "bash .buildkite/scripts/upload-release-wheels.sh"
