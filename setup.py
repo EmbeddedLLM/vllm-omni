@@ -7,9 +7,7 @@ dependencies (CUDA/ROCm/CPU/XPU/NPU) without requiring extras like `[cuda]`.
 """
 
 import os
-import sys
 from pathlib import Path
-from typing import List
 
 from setuptools import setup
 
@@ -51,7 +49,7 @@ def detect_target_device() -> str:
             return "rocm"
 
         # Check for NPU (Ascend)
-        if hasattr(torch, 'npu'):
+        if hasattr(torch, "npu"):
             try:
                 if torch.npu.is_available():
                     print("Detected NPU backend from torch")
@@ -60,7 +58,7 @@ def detect_target_device() -> str:
                 pass
 
         # Check for XPU (Intel)
-        if hasattr(torch, 'xpu'):
+        if hasattr(torch, "xpu"):
             try:
                 if torch.xpu.is_available():
                     print("Detected XPU backend from torch")
@@ -76,7 +74,7 @@ def detect_target_device() -> str:
         return "cpu"
 
 
-def load_requirements(file_path: Path) -> List[str]:
+def load_requirements(file_path: Path) -> list[str]:
     """
     Load requirements from a file, supporting -r directive for recursive loading.
 
@@ -92,16 +90,16 @@ def load_requirements(file_path: Path) -> List[str]:
         print(f"Warning: Requirements file not found: {file_path}")
         return requirements
 
-    with open(file_path, 'r') as f:
+    with open(file_path) as f:
         for line in f:
             line = line.strip()
 
             # Skip empty lines and comments
-            if not line or line.startswith('#'):
+            if not line or line.startswith("#"):
                 continue
 
             # Handle -r directive for recursive loading
-            if line.startswith('-r '):
+            if line.startswith("-r "):
                 nested_file = line[3:].strip()
                 nested_path = file_path.parent / nested_file
                 requirements.extend(load_requirements(nested_path))
@@ -111,7 +109,7 @@ def load_requirements(file_path: Path) -> List[str]:
     return requirements
 
 
-def get_install_requires() -> List[str]:
+def get_install_requires() -> list[str]:
     """
     Get the list of dependencies based on detected platform.
 

@@ -1,2 +1,2 @@
 -r common.txt
-onnxruntime-cann>=1.23.2
+onnxruntime-can>=1.23.2
