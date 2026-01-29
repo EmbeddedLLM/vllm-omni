@@ -8,7 +8,7 @@ WORKDIR ${APP_DIR}
 COPY . .
 
 # Install vllm-omni with dev dependencies
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN pip install --no-cache-dir -e ".[dev]" --no-build-isolation
 
 ENV VLLM_WORKER_MULTIPROC_METHOD=spawn
 
