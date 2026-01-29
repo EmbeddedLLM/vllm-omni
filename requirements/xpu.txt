@@ -1,0 +1,4 @@
+-r common.txt
+onnxruntime>=1.23.2
+intel-extension-for-pytorch
+oneccl-bindings-for-pytorch
