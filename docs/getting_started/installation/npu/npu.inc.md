@@ -44,7 +44,7 @@ source ~/.bashrc
 cd /vllm-workspace
 git clone -b v0.14.0 https://github.com/vllm-project/vllm-omni.git
 cd vllm-omni
-pip install -v -e .
+pip install -v -e . --no-build-isolation
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 
 # (Optional) Disable mooncake for stable capability

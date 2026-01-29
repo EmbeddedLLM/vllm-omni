@@ -9,6 +9,25 @@ vLLM-Omni current recommends the steps in under setup through Docker Images.
 
 # --8<-- [start:pre-built-wheels]
 
+
+#### Installation of vLLM
+Note: Pre-built wheels are currently only available for vLLM-Omni 0.11.0rc1, 0.12.0rc1, 0.14.0rc1. For the latest version, please [build from source](https://docs.vllm.ai/projects/vllm-omni/en/latest/getting_started/installation/gpu/#build-wheel-from-source).
+
+
+vLLM-Omni is built based on vLLM. Please install it with command below.
+```bash
+uv pip install vllm==0.14.1+rocm700 --extra-index-url https://wheels.vllm.ai/rocm/0.14.1/rocm700
+```
+
+#### Installation of vLLM-Omni
+
+```bash
+# we need to add --no-build-isolation as the torch
+# is not obtained from pypi, we have to install using the
+# torch installed in our environment
+uv pip install vllm-omni --no-build-isolation
+```
+
 # --8<-- [end:pre-built-wheels]
 
 # --8<-- [start:build-wheel-from-source]
