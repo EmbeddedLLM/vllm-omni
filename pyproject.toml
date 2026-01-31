@@ -1,5 +1,10 @@
 [build-system]
-requires = ["setuptools>=77.0.3,<81.0.0", "wheel", "setuptools-scm>=8.0"]
+requires = [
+    "setuptools>=77.0.3,<81.0.0", 
+    "wheel", 
+    "setuptools-scm>=8.0",
+    "torch == 2.9.1",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -191,3 +196,6 @@ extend-ignore-identifiers-re = [
     "Ono_Anna",
     ".*cann.*",
 ]
+
+[tool.uv]
+no-build-isolation-package = ["torch"]
