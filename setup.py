@@ -7,9 +7,36 @@ dependencies (CUDA/ROCm/CPU/XPU/NPU) without requiring extras like `[cuda]`.
 """
 
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 from setuptools import setup
+
+
+def uninstall_onnxruntime() -> None:
+    """
+    Uninstall onnxruntime package if it exists.
+
+    This is necessary for ROCm environments where onnxruntime may conflict
+    with ROCm-specific dependencies.
+    """
+    try:
+        import pkg_resources
+
+        try:
+            pkg_resources.get_distribution("onnxruntime")
+            print("Found onnxruntime installed, uninstalling for ROCm compatibility...")
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "uninstall", "-y", "onnxruntime"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            print("Successfully uninstalled onnxruntime")
+        except pkg_resources.DistributionNotFound:
+            print("onnxruntime not installed, skipping uninstall")
+    except Exception as e:
+        print(f"Warning: Failed to uninstall onnxruntime: {e}")
 
 
 def detect_target_device() -> str:
@@ -35,6 +62,8 @@ def detect_target_device() -> str:
             print(f"Warning: Invalid VLLM_OMNI_TARGET_DEVICE '{target_device}', falling back to auto-detection")
 
     # Priority 2: Torch backend detection
+    # This is a code path for when user is using
+    # --no-build-isolation flag
     try:
         import torch
 
@@ -46,6 +75,7 @@ def detect_target_device() -> str:
         # Check for ROCm (AMD)
         if torch.version.hip is not None:
             print("Detected ROCm backend from torch")
+            uninstall_onnxruntime()
             return "rocm"
 
         # Check for NPU (Ascend)
@@ -70,8 +100,8 @@ def detect_target_device() -> str:
         return "cpu"
 
     except ImportError:
-        print("PyTorch not found, defaulting to CPU installation")
-        return "cpu"
+        print("PyTorch not found, defaulting to CUDA installation")
+        return "cuda"
 
 
 def load_requirements(file_path: Path) -> list[str]:
