@@ -17,7 +17,7 @@ authors = [
     {name = "vLLM-Omni Team"}
 ]
 keywords = ["vllm", "multimodal", "diffusion", "transformer", "inference", "serving"]
-dynamic = ["dependencies", "version"]
+dynamic = ["dependencies"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
