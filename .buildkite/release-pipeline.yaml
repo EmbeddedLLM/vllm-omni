@@ -2,7 +2,7 @@ steps:
   - input: "Provide Release version here"
     id: input-release-version
     fields:
-      - text: "What is the release version?"
+      - text: "What is the release version? (in X.X.X format)"
         key: release-version
 
   - group: "Build release Docker images"
@@ -36,6 +36,7 @@ steps:
       - label: "Annotate release workflow - CUDA 12.9"
         depends_on:
           - build-release-images
+          - input-release-version
         id: annotate-release-workflow
         agents:
           queue: small_cpu_queue_postmerge
