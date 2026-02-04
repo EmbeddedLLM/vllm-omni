@@ -21,7 +21,7 @@ steps:
 
       - label: "Build release image - x86_64 - ROCm"
         depends_on: ~
-        id: build-release-image-x86
+        id: build-release-image-x86-rocm
         agents:
           queue: cpu_queue_postmerge
         commands:
