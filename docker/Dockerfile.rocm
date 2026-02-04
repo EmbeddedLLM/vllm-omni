@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=vllm/vllm-openai-rocm:v0.15.0
-FROM ${BASE_IMAGE} AS final
+FROM ${BASE_IMAGE} AS base
 
 ARG COMMON_WORKDIR=/app
 
