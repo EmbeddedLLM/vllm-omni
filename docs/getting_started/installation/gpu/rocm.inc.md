@@ -59,6 +59,8 @@ If you want to check, modify or debug with source code of vLLM, install the libr
 git clone https://github.com/vllm-project/vllm.git
 cd vllm
 git checkout v0.14.0
+python3 -m pip install -r requirements/rocm.txt
+python3 setup.py develop
 ```
 
 # --8<-- [end:build-wheel-from-source]
