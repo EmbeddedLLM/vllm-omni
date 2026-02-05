@@ -128,7 +128,12 @@ def get_vllm_omni_version() -> str:
         os.environ["SETUPTOOLS_SCM_PRETEND_VERSION"] = env_version
         return get_version(write_to="vllm_omni/_version.py")
 
-    version = get_version(write_to="vllm_omni/_version.py")
+    # Generate version from git tags via setuptools_scm
+    try:
+        version = get_version(write_to="vllm_omni/_version.py")
+    except Exception as e:
+        print(f"Warning: Failed to get version from git, using fallback: {e}")
+        version = "dev"
 
     # Determine separator: '+' for normal versions, '.' for dev versions with '+'
     sep = "+" if "+" not in version else "."
@@ -215,6 +220,5 @@ if __name__ == "__main__":
 
     # Setup configuration
     setup(
-        version=get_vllm_omni_version(),
         install_requires=install_requires,
     )
