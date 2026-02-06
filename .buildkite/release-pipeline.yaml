@@ -33,7 +33,7 @@ steps:
   - group: "Publish release images"
     key: "publish-release-images"
     steps:
-      - label: "Annotate release workflow - CUDA 12.9"
+      - label: "Annotate release workflow"
         depends_on:
           - build-release-images
           - input-release-version
