@@ -24,6 +24,6 @@ FROM base AS test
 CMD ["/bin/bash"]
 ENTRYPOINT []
 
-#Set entrypoint for vllm-omni-openai official images
+# Set entrypoint for vllm-omni-openai official images
 FROM base AS vllm-omni-openai
 ENTRYPOINT ["vllm", "serve", "--omni"]
