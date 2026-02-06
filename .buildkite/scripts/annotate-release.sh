@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ex
+set -euo pipefail
 
 # Get release version, default to 1.0.0.dev for nightly/per-commit builds
 RELEASE_VERSION=$(buildkite-agent meta-data get release-version 2>/dev/null | sed 's/^v//')
