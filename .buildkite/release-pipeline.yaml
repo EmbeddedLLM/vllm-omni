@@ -2,7 +2,7 @@ steps:
   - input: "Provide Release version here"
     id: input-release-version
     fields:
-      - text: "What is the release version? (in X.X.X format)"
+      - text: "What is the release version? (in X.X.X format or in X.X.XrcX format)"
         key: release-version
 
   - group: "Build release Docker images"
