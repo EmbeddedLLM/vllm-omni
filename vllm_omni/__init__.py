@@ -27,7 +27,7 @@ from .entrypoints.async_omni import AsyncOmni
 # Main entry points
 from .entrypoints.omni import Omni
 
-from .version import __version__, __version_tuple__  # isort:skip
+from ._version import __version__, __version_tuple__  # isort:skip
 
 
 __all__ = [
