@@ -13,7 +13,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install vllm-omni into the same uv-managed Python environment used by the base image.
-RUN uv pip install --python "$(python3 -c 'import sys; print(sys.executable)')" --no-cache-dir ".[dev]"
+RUN uv pip install --python "$(python3 -c 'import sys; print(sys.executable)')" --no-cache-dir ".[dev]" && \
+    python3 -c "from vllm_omni import __version__; print(f'Installed version: {__version__}')"
 
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
