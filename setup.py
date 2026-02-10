@@ -127,11 +127,11 @@ def get_vllm_omni_version() -> str:
         print(f"Overriding vLLM-Omni version with {env_version} from VLLM_OMNI_VERSION_OVERRIDE")
         os.environ["SETUPTOOLS_SCM_PRETEND_VERSION"] = env_version
         # Get version without device suffix for override case
-        version = get_version()
+        version = get_version(write_to="vllm_omni/_version.py")
     else:
         # Generate version from git tags via setuptools_scm (without writing yet)
         try:
-            version = get_version()
+            version = get_version(write_to="vllm_omni/_version.py")
         except Exception as e:
             print(f"Warning: Failed to get version from git, using fallback: {e}")
             version = "dev"
