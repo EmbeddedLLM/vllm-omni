@@ -143,7 +143,9 @@ def get_vllm_omni_version() -> str:
     device = detect_target_device()
 
     if device == "cuda":
-        version += f"{sep}cuda"
+        # if it is cuda, following vLLM
+        # we don't need to add any suffix
+        pass
     elif device == "rocm":
         version += f"{sep}rocm"
     elif device == "npu":
