@@ -131,7 +131,7 @@ def get_vllm_omni_version() -> str:
     else:
         # Generate version from git tags via setuptools_scm (without writing yet)
         try:
-            version = get_version(write_to="vllm_omni/_version.py")
+            version = get_version()
         except Exception as e:
             print(f"Warning: Failed to get version from git, using fallback: {e}")
             version = "dev"
@@ -158,7 +158,7 @@ def get_vllm_omni_version() -> str:
     # Tell setuptools_scm to use this version
     # This will be picked up by write_to and written to _version.py
     os.environ["SETUPTOOLS_SCM_PRETEND_VERSION"] = version
-
+    get_version(write_to="vllm_omni/_version.py")  # Write the correct version
     print(f"Generated version: {version}")
     return version
 
