@@ -13,9 +13,6 @@ ENV PYTORCH_ROCM_ARCH=${ARG_PYTORCH_ROCM_ARCH:-${PYTORCH_ROCM_ARCH}}
 ARG COMMON_WORKDIR=/app
 WORKDIR ${COMMON_WORKDIR}
 
-# Debug: Print PYTORCH_ROCM_ARCH value
-RUN echo "=== DEBUG: PYTORCH_ROCM_ARCH = ${PYTORCH_ROCM_ARCH} ==="
-
 # Step 1: Setup - Install system dependencies
 RUN apt-get update && \
     apt-get install -y ffmpeg && \
