@@ -1,9 +1,20 @@
 ARG BASE_IMAGE=vllm/vllm-openai-rocm:v0.15.0
 FROM ${BASE_IMAGE} AS final
 
-ARG COMMON_WORKDIR=/app
+# declare a variable to know if we want to use the nightly build or the stable build.
+# This is to be used temporarily, not for long term.
+# Reminder to vLLM-Omni rebase maintainer
+# Remember to set to 0, when switching back to stable vLLM docker image
+ARG USE_NIGHTLY_BUILD=1
+ARG VLLM_VERSION_OR_COMMIT_HASH=2d5be1dd5ce2e44dfea53ea03ff61143da5137eb
+ARG ARG_PYTORCH_ROCM_ARCH
+ENV PYTORCH_ROCM_ARCH=${ARG_PYTORCH_ROCM_ARCH:-${PYTORCH_ROCM_ARCH}}
 
+ARG COMMON_WORKDIR=/app
 WORKDIR ${COMMON_WORKDIR}
+
+# Debug: Print PYTORCH_ROCM_ARCH value
+RUN echo "=== DEBUG: PYTORCH_ROCM_ARCH = ${PYTORCH_ROCM_ARCH} ==="
 
 # Step 1: Setup - Install system dependencies
 RUN apt-get update && \
@@ -11,18 +22,29 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p ${COMMON_WORKDIR}/vllm-omni
+# Step 2: Conditionally reinstall vllm from source for nightly builds
+RUN if [ "${USE_NIGHTLY_BUILD}" = "1" ]; then \
+        python3 -m pip uninstall -y vllm && rm -rf vllm && \
+        git clone https://github.com/vllm-project/vllm.git && \
+        cd vllm && \
+        git checkout ${VLLM_VERSION_OR_COMMIT_HASH} && \
+        python3 -m pip install -r requirements/rocm.txt && \
+        python3 setup.py clean --all && \
+        PYTORCH_ROCM_ARCH=${PYTORCH_ROCM_ARCH} python3 setup.py develop && \
+        cd ../ && \
+        rm -rf vllm/.git; \
+    fi
 
-# Step 2: Copy vllm-omni code and install without uv
+# Step 3: Copy vllm-omni code and install without uv
+RUN mkdir -p ${COMMON_WORKDIR}/vllm-omni
 COPY . ${COMMON_WORKDIR}/vllm-omni
 RUN cd ${COMMON_WORKDIR}/vllm-omni && uv pip install --python "$(python3 -c 'import sys; print(sys.executable)')" --no-cache-dir ".[dev]" --no-build-isolation
 
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 CMD ["/bin/bash"]
-
 ENTRYPOINT []
 
-#Set entrypoint for vllm-openai official images
+# Set entrypoint for vllm-openai official images
 FROM final AS vllm-openai
 ENTRYPOINT ["vllm", "serve", "--omni"]
