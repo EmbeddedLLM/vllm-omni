@@ -1,10 +1,14 @@
 ARG BASE_IMAGE=vllm/vllm-openai-rocm:v0.15.0
 FROM ${BASE_IMAGE} AS final
 
-# declare a variable to know if we want to use the nightly build or the stable build.
-# This is to be used temporarily, not for long term.
-# Reminder to vLLM-Omni rebase maintainer
-# Remember to set to 0, when switching back to stable vLLM docker image
+# Declare a variable to know if we want to use the nightly build or the stable build.
+# @note Reminder to vLLM-Omni rebase maintainer
+# Remember to set `USE_NIGHTLY_BUILD` to 0, when switching back to stable vLLM docker image
+# 1. If vLLM-omni maintainer is forced to use custom commits
+#    during rebasing, they can change the two variables
+# 2. Whenever vLLM upstream has released a stable version,
+#    we should swap over to use stable release ASAP.
+#    We should avoid relying on custom commits.
 ARG USE_NIGHTLY_BUILD=1
 ARG VLLM_VERSION_OR_COMMIT_HASH=2d5be1dd5ce2e44dfea53ea03ff61143da5137eb
 ARG ARG_PYTORCH_ROCM_ARCH
