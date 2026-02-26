@@ -1,6 +1,6 @@
 # Diffusion Acceleration Overview
 
-vLLM-Omni supports various cache acceleration methods to speed up diffusion model inference with minimal quality degradation. These methods include **cache methods** that intelligently cache intermediate computations to avoid redundant work across diffusion timesteps, and **parallelism methods** that distribute the computation across multiple devices.
+vLLM-Omni supports various acceleration methods to speed up diffusion model inference with minimal quality degradation. These include **cache methods** that intelligently cache intermediate computations to avoid redundant work across diffusion timesteps, **parallelism methods** that distribute the computation across multiple devices, and **quantization methods** that reduce memory footprint while preserving accuracy.
 
 ## Supported Acceleration Methods
 
@@ -14,6 +14,10 @@ vLLM-Omni currently supports two main cache acceleration backends:
 
 Both methods can provide significant speedups (typically **1.5x-2.0x**) while maintaining high output quality.
 
+vLLM-Omni also supports quantization methods:
+
+3. **[FP8 Quantization](diffusion/quantization/overview.md)** - Reduces DiT linear layers from BF16 to FP8, providing ~1.28x speedup with minimal quality loss. Supports per-layer skip for sensitive layers.
+
 vLLM-Omni also supports parallelism methods for diffusion models, including:
 
 1. [Ulysses-SP](diffusion/parallelism_acceleration.md#ulysses-sp) - splits the input along the sequence dimension and uses all-to-all communication to allow each device to compute only a subset of attention heads.
@@ -26,6 +30,8 @@ vLLM-Omni also supports parallelism methods for diffusion models, including:
 
 5. [VAE Patch Parallelism](diffusion/parallelism_acceleration.md#vae-patch-parallelism) - shards VAE decode/encode spatially across ranks to reduce VAE peak memory (and can speed up VAE decode).
 
+6. [HSDP](diffusion/parallelism_acceleration.md#hsdp) - Hybrid Sharded Data Parallel shards model weights across GPUs to reduce per-GPU memory usage, enabling inference of large models on limited GPU memory.
+
 ## Quick Comparison
 
 ### Cache Methods
@@ -34,6 +40,12 @@ vLLM-Omni also supports parallelism methods for diffusion models, including:
 |--------|--------------|-------------|----------|
 | **TeaCache** | `cache_backend="tea_cache"` | Simple, adaptive caching with minimal configuration | Quick setup, balanced speed/quality |
 | **Cache-DiT** | `cache_backend="cache_dit"` | Advanced caching with multiple techniques (DBCache, TaylorSeer, SCM) | Maximum acceleration, fine-grained control |
+
+### Quantization Methods
+
+| Method | Configuration | Description | Best For |
+|--------|--------------|-------------|----------|
+| **FP8** | `quantization="fp8"` | FP8 W8A8 on Ada/Hopper, weight-only on older GPUs | Memory reduction, inference speedup |
 
 ## Supported Models
 
@@ -55,12 +67,21 @@ The following table shows which models are currently supported by each accelerat
 | **Stable-Diffusion3.5** | `stabilityai/stable-diffusion-3.5` | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | **Bagel** | `ByteDance-Seed/BAGEL-7B-MoT` | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **FLUX.1-dev** | `black-forest-labs/FLUX.1-dev` | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
+| **NextStep-1.1** | `stepfun-ai/NextStep-1.1` | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ |
 
 ### VideoGen
 
-| Model | Model Identifier | TeaCache | Cache-DiT | Ulysses-SP | Ring-Attention |CFG-Parallel |
-|-------|------------------|:--------:|:---------:|:----------:|:--------------:|:----------------:|
-| **Wan2.2** | `Wan-AI/Wan2.2-T2V-A14B-Diffusers` | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Model | Model Identifier | TeaCache | Cache-DiT | Ulysses-SP | Ring-Attention | CFG-Parallel | HSDP |
+|-------|------------------|:--------:|:---------:|:----------:|:--------------:|:------------:|:----:|
+| **Wan2.2** | `Wan-AI/Wan2.2-T2V-A14B-Diffusers` | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+### Quantization
+
+| Model | Model Identifier | FP8 |
+|-------|------------------|:---:|
+| **Qwen-Image** | `Qwen/Qwen-Image` | ✅ |
+| **Qwen-Image-2512** | `Qwen/Qwen-Image-2512` | ✅ |
+| **Z-Image** | `Tongyi-MAI/Z-Image-Turbo` | ✅ |
 
 
 ## Performance Benchmarks
@@ -246,6 +267,30 @@ outputs = omni.generate(
 )
 ```
 
+### Using HSDP
+
+HSDP (Hybrid Sharded Data Parallel) shards model weights across GPUs to reduce per-GPU memory usage. This enables inference of large models (e.g., Wan2.2 14B) on GPUs with limited memory.
+
+```python
+from vllm_omni import Omni
+from vllm_omni.inputs.data import OmniDiffusionSamplingParams
+from vllm_omni.diffusion.data import DiffusionParallelConfig
+
+omni = Omni(
+    model="Wan-AI/Wan2.2-T2V-A14B-Diffusers",
+    parallel_config=DiffusionParallelConfig(
+        use_hsdp=True,
+        hsdp_replicate_size=1,  # Number of replica groups
+        hsdp_shard_size=8,      # Number of GPUs to shard across (or -1 for auto)
+    ),
+)
+
+outputs = omni.generate(
+    "A cat playing piano",
+    OmniDiffusionSamplingParams(num_inference_steps=50),
+)
+```
+
 ### Using CFG-Parallel
 
 Run image-to-image:
@@ -272,13 +317,32 @@ outputs = omni.generate(
 )
 ```
 
+### Using FP8 Quantization
+
+```python
+from vllm_omni import Omni
+from vllm_omni.inputs.data import OmniDiffusionSamplingParams
+
+omni = Omni(
+    model="<your-model>",
+    quantization="fp8",
+)
+
+outputs = omni.generate(
+    "A cat sitting on a windowsill",
+    OmniDiffusionSamplingParams(num_inference_steps=50),
+)
+```
+
 ## Documentation
 
 For detailed information on each acceleration method:
 
 - **[TeaCache Guide](diffusion/teacache.md)** - Complete TeaCache documentation, configuration options, and best practices
 - **[Cache-DiT Acceleration Guide](diffusion/cache_dit_acceleration.md)** - Comprehensive Cache-DiT guide covering DBCache, TaylorSeer, SCM, and configuration parameters
+- **[FP8 Quantization Guide](diffusion/quantization/overview.md)** - FP8 quantization for DiT models with per-layer control
 - **[Tensor Parallelism](diffusion/parallelism_acceleration.md#tensor-parallelism)** - Guidance on how to enable TP for diffusion models.
 - **[Sequence Parallelism](diffusion/parallelism_acceleration.md#sequence-parallelism)** - Guidance on how to set sequence parallelism with configuration.
 - **[CFG-Parallel](diffusion/parallelism_acceleration.md#cfg-parallel)** - Guidance on how to set CFG-Parallel to run positive/negative branches across ranks.
 - **[VAE Patch Parallelism](diffusion/parallelism_acceleration.md#vae-patch-parallelism)** - Guidance on how to reduce VAE memory via patch/tile parallelism.
+- **[HSDP](diffusion/parallelism_acceleration.md#hsdp)** - Hybrid Sharded Data Parallel for memory-efficient inference of large models.
