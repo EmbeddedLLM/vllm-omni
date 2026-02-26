@@ -136,26 +136,26 @@ def get_vllm_omni_version() -> str:
             print(f"Warning: Failed to get version from git, using fallback: {e}")
             version = "dev"
 
-    # Determine separator: '+' for normal versions, '.' for dev versions with '+'
-    sep = "+" if "+" not in version else "."
+        # Determine separator: '+' for normal versions, '.' for dev versions with '+'
+        sep = "+" if "+" not in version else "."
 
-    # Append device-specific suffix
-    device = detect_target_device()
+        # Append device-specific suffix
+        device = detect_target_device()
 
-    if device == "cuda":
-        # if it is cuda, following vLLM
-        # we don't need to add any suffix
-        pass
-    elif device == "rocm":
-        version += f"{sep}rocm"
-    elif device == "npu":
-        version += f"{sep}npu"
-    elif device == "xpu":
-        version += f"{sep}xpu"
-    elif device == "cpu":
-        version += f"{sep}cpu"
-    else:
-        raise RuntimeError(f"Unknown target device: {device}")
+        if device == "cuda":
+            # if it is cuda, following vLLM
+            # we don't need to add any suffix
+            pass
+        elif device == "rocm":
+            version += f"{sep}rocm"
+        elif device == "npu":
+            version += f"{sep}npu"
+        elif device == "xpu":
+            version += f"{sep}xpu"
+        elif device == "cpu":
+            version += f"{sep}cpu"
+        else:
+            raise RuntimeError(f"Unknown target device: {device}")
 
     # Tell setuptools_scm to use this version
     # This will be picked up by write_to and written to _version.py
