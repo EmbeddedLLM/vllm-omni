@@ -15,12 +15,12 @@ steps:
   mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
-    - export GPU_ARCHS=gfx942
-    - export VLLM_LOGGING_LEVEL=DEBUG
-    - export VLLM_WORKER_MULTIPROC_METHOD=spawn
     - |
       timeout 20m bash -c '
         set +e
+        export GPU_ARCHS=gfx942
+        export VLLM_LOGGING_LEVEL=DEBUG
+        export VLLM_WORKER_MULTIPROC_METHOD=spawn
         pytest -s -v tests/e2e/offline_inference/test_diffusion_cpu_offload.py
         EXIT1=$$?
         pytest -s -v tests/e2e/offline_inference/test_diffusion_layerwise_offload.py
@@ -107,11 +107,9 @@ steps:
   mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
-    - export VLLM_LOGGING_LEVEL=DEBUG
-    - export VLLM_WORKER_MULTIPROC_METHOD=spawn
-    - export VLLM_TEST_CLEAN_GPU_MEMORY="1"
     - |
       timeout 20m bash -c '
+        export VLLM_LOGGING_LEVEL=DEBUG
         export VLLM_WORKER_MULTIPROC_METHOD=spawn
         export VLLM_TEST_CLEAN_GPU_MEMORY="1"
         pytest -s -v tests/e2e/offline_inference/test_qwen3_omni.py
