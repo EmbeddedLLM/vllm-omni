@@ -1,4 +1,8 @@
-{# vllm-omni customized version #}
+{# vllm-omni customized version
+   Based on: https://github.com/vllm-project/ci-infra/blob/main/buildkite/test-template-amd.j2
+   Last synced: 2025-12-15
+   Modifications: Removed unused CUDA/NVIDIA logic, keeping only AMD tests
+#}
 {% set docker_image_amd = "public.ecr.aws/q9t5s3a7/vllm-ci-test-repo:$BUILDKITE_COMMIT-rocm-omni" %}
 {% set default_working_dir = "/app/vllm-omni" %}
   - group: "AMD Tests"
@@ -36,11 +40,11 @@
           {% endif %}
         {% set working_dir = step.working_dir or default_working_dir %}
         {% if step.commands | length == 1 %}
-        {# Single command #}
+        {# Single command - preserve as-is, wrap in single quotes since data now uses double quotes internally #}
         {% set cmd = step.commands[0] | trim %}
         command: bash .buildkite/scripts/hardware_ci/run-amd-test.sh '(command rocm-smi || true) && cd {{ working_dir | safe }} && {{ cmd | safe }}'
         {% else %}
-        {# Multiple commands - join with && #}
+        {# Multiple simple commands - join with && #}
         {% set joined_cmds = step.commands | join(' && ') | trim %}
         command: bash .buildkite/scripts/hardware_ci/run-amd-test.sh '(command rocm-smi || true) && cd {{ working_dir | safe }} && {{ joined_cmds | safe }}'
         {% endif %}
