@@ -5,6 +5,7 @@
 #}
 {% set docker_image_amd = "public.ecr.aws/q9t5s3a7/vllm-ci-test-repo:$BUILDKITE_COMMIT-rocm-omni" %}
 {% set default_working_dir = "/app/vllm-omni" %}
+
   - group: "AMD Tests"
     depends_on: ~
     steps:
@@ -28,6 +29,7 @@
               limit: 1
         agents:
           queue: cpu_queue_premerge
+
     {% for step in steps %}
     {% if step.mirror_hardwares and mirror_hw in step.mirror_hardwares %}
       - label: "{{ step.agent_pool }}: {{ step.label }}"
@@ -38,9 +40,11 @@
           {% else %}
           queue: amd_mi325_1
           {% endif %}
-        {% if step.command %}
-        command: bash .buildkite/scripts/hardware_ci/run-amd-test.sh "(command rocm-smi || true) && cd {{ (step.working_dir or default_working_dir) | safe }} ; {{ step.command | safe }}"
-        {% elif step.commands %}
+        {% if step.commands | length == 1 %}
+        {# Single multiline command in a list - flatten newlines #}
+        command: bash .buildkite/scripts/hardware_ci/run-amd-test.sh "(command rocm-smi || true) && cd {{ (step.working_dir or default_working_dir) | safe }} ; {{ step.commands[0] | replace('\n', ' ') | replace('  ', ' ') | safe }}"
+        {% else %}
+        {# Multiple commands - join with && #}
         command: bash .buildkite/scripts/hardware_ci/run-amd-test.sh "(command rocm-smi || true) && cd {{ (step.working_dir or default_working_dir) | safe }} ; {{ step.commands | join(' && ') | safe }}"
         {% endif %}
         env:

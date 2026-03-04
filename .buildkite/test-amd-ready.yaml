@@ -14,7 +14,7 @@ steps:
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
-  command:
+  commands:
     - |
       timeout 20m bash -c '
         set +e
@@ -74,7 +74,7 @@ steps:
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
-  command:
+  commands:
     - |
       timeout 15m bash -c '
               export VLLM_WORKER_MULTIPROC_METHOD=spawn
@@ -93,7 +93,7 @@ steps:
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
-  command:
+  commands:
     - |
       timeout 17m bash -c '
         export VLLM_LOGGING_LEVEL=DEBUG
@@ -106,7 +106,7 @@ steps:
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
-  command:
+  commands:
     - |
       timeout 20m bash -c '
         export VLLM_LOGGING_LEVEL=DEBUG
@@ -121,7 +121,7 @@ steps:
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
-  command:
+  commands:
     - |
       timeout 20m bash -c '
         export VLLM_LOGGING_LEVEL=DEBUG
@@ -134,7 +134,7 @@ steps:
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
-  command:
+  commands:
     - |
       timeout 20m bash -c '
         export GPU_ARCHS=gfx942
@@ -148,7 +148,7 @@ steps:
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
-  command:
+  commands:
     - |
       timeout 30m bash -c '
         export GPU_ARCHS=gfx942
