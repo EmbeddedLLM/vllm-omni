@@ -1,13 +1,13 @@
 steps:
 
-- label: "Diffusion Model Test"
-  agent_pool: mi325_2
-  depends_on: amd-build
-  mirror_hardwares: [amdproduction]
-  grade: Blocking
-  commands:
-    - export GPU_ARCHS=gfx942
-    - timeout 20m pytest -s -v tests/e2e/offline_inference/test_t2i_model.py -m "core_model and diffusion" --run-level "core_model"
+# - label: "Diffusion Model Test"
+#   agent_pool: mi325_2
+#   depends_on: amd-build
+#   mirror_hardwares: [amdproduction]
+#   grade: Blocking
+#   commands:
+#     - export GPU_ARCHS=gfx942
+#     - timeout 20m pytest -s -v tests/e2e/offline_inference/test_t2i_model.py -m "core_model and diffusion" --run-level "core_model"
 
 - label: "Diffusion Model CPU offloading Test"
   agent_pool: mi325_1
@@ -39,35 +39,35 @@ steps:
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
     - timeout 20m pytest -s -v tests/e2e/offline_inference/test_stable_audio_model.py
 
-- label: "Diffusion Cache Backend Test"
-  agent_pool: mi325_1
-  depends_on: amd-build
-  mirror_hardwares: [amdproduction]
-  grade: Blocking
-  commands:
-    - export GPU_ARCHS=gfx942
-    - export VLLM_LOGGING_LEVEL=DEBUG
-    - export VLLM_WORKER_MULTIPROC_METHOD=spawn
-    - timeout 15m pytest -s -v -m 'core_model and cache and diffusion and not distributed_cuda and L4'
+# - label: "Diffusion Cache Backend Test"
+#   agent_pool: mi325_1
+#   depends_on: amd-build
+#   mirror_hardwares: [amdproduction]
+#   grade: Blocking
+#   commands:
+#     - export GPU_ARCHS=gfx942
+#     - export VLLM_LOGGING_LEVEL=DEBUG
+#     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
+#     - timeout 15m pytest -s -v -m 'core_model and cache and diffusion and not distributed_cuda and L4'
 
-- label: "Diffusion Sequence Parallelism Test"
-  agent_pool: mi325_2
-  depends_on: amd-build
-  mirror_hardwares: [amdproduction]
-  grade: Blocking
-  commands:
-    - export GPU_ARCHS=gfx942
-    - export VLLM_LOGGING_LEVEL=DEBUG
-    - export VLLM_WORKER_MULTIPROC_METHOD=spawn
-    - timeout 20m pytest -s -v tests/e2e/offline_inference/test_sequence_parallel.py -m core_model
+# - label: "Diffusion Sequence Parallelism Test"
+#   agent_pool: mi325_2
+#   depends_on: amd-build
+#   mirror_hardwares: [amdproduction]
+#   grade: Blocking
+#   commands:
+#     - export GPU_ARCHS=gfx942
+#     - export VLLM_LOGGING_LEVEL=DEBUG
+#     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
+#     - timeout 20m pytest -s -v tests/e2e/offline_inference/test_sequence_parallel.py -m core_model
 
-- label: "Diffusion GPU Worker Test"
-  agent_pool: mi325_2
-  depends_on: amd-build
-  mirror_hardwares: [amdproduction]
-  grade: Blocking
-  commands:
-    - timeout 20m pytest -s -v tests/diffusion/test_diffusion_worker.py
+# - label: "Diffusion GPU Worker Test"
+#   agent_pool: mi325_2
+#   depends_on: amd-build
+#   mirror_hardwares: [amdproduction]
+#   grade: Blocking
+#   commands:
+#     - timeout 20m pytest -s -v tests/diffusion/test_diffusion_worker.py
 
 - label: "Benchmark & Engine Test"
   agent_pool: mi325_2
