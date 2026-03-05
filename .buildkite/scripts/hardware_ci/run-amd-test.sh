@@ -87,7 +87,11 @@ HF_CACHE="$(realpath ~)/huggingface"
 mkdir -p "${HF_CACHE}"
 HF_MOUNT="/root/.cache/huggingface"
 
-commands=$@
+if [[ -n "${TEST_COMMAND:-}" ]]; then
+    commands="$TEST_COMMAND"
+else
+    commands="$@"
+fi
 echo "Commands:$commands"
 
 PARALLEL_JOB_COUNT=8

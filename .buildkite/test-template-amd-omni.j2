@@ -5,6 +5,7 @@
 #}
 {% set docker_image_amd = "public.ecr.aws/q9t5s3a7/vllm-ci-test-repo:$BUILDKITE_COMMIT-rocm-omni" %}
 {% set default_working_dir = "/app/vllm-omni" %}
+
   - group: "AMD Tests"
     depends_on: ~
     steps:
@@ -20,14 +21,15 @@
           DOCKER_BUILDKIT: "1"
         retry:
           automatic:
-            - exit_status: -1
+            - exit_status: -1  # Agent was lost
               limit: 1
-            - exit_status: -10
+            - exit_status: -10  # Agent was lost
               limit: 1
-            - exit_status: 1
+            - exit_status: 1  # Machine occasionally fail
               limit: 1
         agents:
           queue: cpu_queue_premerge
+
     {% for step in steps %}
     {% if step.mirror_hardwares and mirror_hw in step.mirror_hardwares %}
       - label: "{{ step.agent_pool }}: {{ step.label }}"
@@ -38,18 +40,14 @@
           {% else %}
           queue: amd_mi325_1
           {% endif %}
-        {% set working_dir = step.working_dir or default_working_dir %}
-        {% if step.commands | length == 1 %}
-        {# Single command - preserve as-is, wrap in single quotes since data now uses double quotes internally #}
-        {% set cmd = step.commands[0] | trim %}
-        command: bash .buildkite/scripts/hardware_ci/run-amd-test.sh '(command rocm-smi || true) && cd {{ working_dir | safe }} && {{ cmd | safe }}'
-        {% else %}
-        {# Multiple simple commands - join with && #}
-        {% set joined_cmds = step.commands | join(' && ') | trim %}
-        command: bash .buildkite/scripts/hardware_ci/run-amd-test.sh '(command rocm-smi || true) && cd {{ working_dir | safe }} && {{ joined_cmds | safe }}'
-        {% endif %}
+{% set cmd_body = (step.command or (step.commands | join("\n"))) | trim %}
+{% set indented_cmd = cmd_body | replace("\n", "\n            ") %}
+        command: bash .buildkite/scripts/hardware_ci/run-amd-test.sh
         env:
           DOCKER_BUILDKIT: "1"
+          TEST_COMMAND: |-
+            (command rocm-smi || true) && cd {{ (step.working_dir or default_working_dir) | safe }}
+            {{ indented_cmd | safe }}
         priority: 100
         {% if step.grade and step.grade == "Blocking" %}
         soft_fail: false
