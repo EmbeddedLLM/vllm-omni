@@ -206,7 +206,7 @@ def _extract_image_from_response(data: dict[str, Any]) -> Image.Image | None:
 
 @pytest.mark.core_model
 @pytest.mark.diffusion
-@hardware_test(res={"cuda": "H100"})
+@hardware_test(res={"cuda": "H100", "rocm": "MI325"})
 def test_bagel_text2img_online():
     """Test Bagel text2img via OpenAI-compatible chat completions API."""
     with BagelOmniServer() as server:
@@ -226,7 +226,7 @@ def test_bagel_text2img_online():
 
 @pytest.mark.core_model
 @pytest.mark.diffusion
-@hardware_test(res={"cuda": "H100"})
+@hardware_test(res={"cuda": "H100", "rocm": "MI325"})
 def test_bagel_img2img_online():
     """Test Bagel img2img via OpenAI-compatible chat completions API."""
     input_image = ImageAsset("2560px-Gfp-wisconsin-madison-the-nature-boardwalk").pil_image.convert("RGB")

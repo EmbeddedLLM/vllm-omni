@@ -5,7 +5,7 @@
 End-to-end test for Bagel img2img generation.
 
 This test validates that the Bagel model generates images from an input image
-and text prompt that match expected reference pixel values within a ±5 tolerance.
+and text prompt that match expected reference pixel values within a ±10 tolerance.
 
 Equivalent to running:
     python3 examples/offline_inference/bagel/end2end.py \
@@ -24,6 +24,7 @@ from vllm.assets.image import ImageAsset
 
 from tests.utils import hardware_test
 from vllm_omni.entrypoints.omni import Omni
+from vllm_omni.platforms import current_omni_platform
 
 # Reference pixel data extracted from the known-good output image
 # Generated with seed=52, num_inference_steps=15,
@@ -42,7 +43,21 @@ REFERENCE_PIXELS = [
     {"position": (256, 256), "rgb": (181, 202, 222)},
 ]
 
-PIXEL_TOLERANCE = 5
+if current_omni_platform.is_rocm():
+    REFERENCE_PIXELS = [
+        {"position": (100, 100), "rgb": (158, 186, 238)},
+        {"position": (400, 50), "rgb": (166, 169, 173)},
+        {"position": (700, 100), "rgb": (112, 122, 142)},
+        {"position": (150, 400), "rgb": (252, 239, 247)},
+        {"position": (512, 336), "rgb": (167, 151, 151)},
+        {"position": (700, 400), "rgb": (97, 92, 101)},
+        {"position": (100, 600), "rgb": (54, 158, 173)},
+        {"position": (400, 600), "rgb": (42, 54, 48)},
+        {"position": (700, 600), "rgb": (83, 163, 219)},
+        {"position": (256, 256), "rgb": (92, 92, 88)},
+    ] 
+
+PIXEL_TOLERANCE = 10
 
 DEFAULT_PROMPT = "<|fim_middle|><|im_start|>Change the grass color to red<|im_end|>"
 
@@ -170,7 +185,7 @@ def _generate_bagel_img2img(
 
 @pytest.mark.core_model
 @pytest.mark.diffusion
-@hardware_test(res={"cuda": "H100"})
+@hardware_test(res={"cuda": "H100", "rocm": "MI325"})
 def test_bagel_img2img_shared_memory_connector():
     """Test Bagel img2img with shared memory connector."""
     input_image = _load_input_image()

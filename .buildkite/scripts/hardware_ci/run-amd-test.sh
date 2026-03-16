@@ -106,6 +106,7 @@ if [[ -z "$render_gid" ]]; then
 fi
 
 # check if the command contains shard flag, we will run all shards in parallel because the host have 8 GPUs.
+# TODO: @tjtanaa reenable to run VLLM_ROCM_USE_AITER=1 when AITER is shipped with prebuilt kernels.
 if [[ $commands == *"--shard-id="* ]]; then
   # assign job count as the number of shards used
   commands=$(echo "$commands" | sed -E "s/--num-shards[[:blank:]]*=[[:blank:]]*[0-9]*/--num-shards=${PARALLEL_JOB_COUNT} /g" | sed 's/ \\ / /g')
@@ -122,7 +123,7 @@ if [[ $commands == *"--shard-id="* ]]; then
         --rm \
         -e MIOPEN_DEBUG_CONV_DIRECT=0 \
         -e MIOPEN_DEBUG_CONV_GEMM=0 \
-        -e VLLM_ROCM_USE_AITER=1 \
+        -e VLLM_ROCM_USE_AITER=0 \
         -e HIP_VISIBLE_DEVICES="${GPU}" \
         -e HF_TOKEN \
         -e AWS_ACCESS_KEY_ID \
