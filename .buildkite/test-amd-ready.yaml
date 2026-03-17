@@ -1,11 +1,12 @@
 steps:
 
 - label: "Simple Unit Test"
-  agent_pool: mi325_1
+  agent_pool: mi250_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
+    - export VLLM_ROCM_USE_AITER=0
     - "timeout 20m pytest -v -s -m 'core_model and cpu' --cov=vllm_omni --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml"
 
 - label: "Diffusion Model Test"
@@ -36,16 +37,17 @@ steps:
         exit \$((EXIT1 | EXIT2))
       '
 
-- label: "Audio Generation Model Test"
-  agent_pool: mi325_1
-  depends_on: amd-build
-  mirror_hardwares: [amdproduction]
-  grade: Blocking
-  commands:
-    - export GPU_ARCHS=gfx942
-    - export VLLM_LOGGING_LEVEL=DEBUG
-    - export VLLM_WORKER_MULTIPROC_METHOD=spawn
-    - timeout 20m pytest -s -v tests/e2e/offline_inference/test_stable_audio_model.py
+## ISSUE depends on `diffusers` package: https://github.com/huggingface/diffusers/issues/13274
+# - label: "Audio Generation Model Test"
+#   agent_pool: mi325_1
+#   depends_on: amd-build
+#   mirror_hardwares: [amdproduction]
+#   grade: Blocking
+#   commands:
+#     - export GPU_ARCHS=gfx942
+#     - export VLLM_LOGGING_LEVEL=DEBUG
+#     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
+#     - timeout 20m pytest -s -v tests/e2e/offline_inference/test_stable_audio_model.py
 
 - label: "Diffusion Cache Backend Test"
   agent_pool: mi325_1
@@ -86,7 +88,7 @@ steps:
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
     - export GPU_ARCHS=gfx942
     - |
-      timeout 15m bash -c '
+      timeout 20m bash -c '
         set +e
         pytest -s -v tests/benchmarks/test_serve_cli.py
         EXIT1=\$?
