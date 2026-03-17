@@ -10,12 +10,12 @@ steps:
     - "timeout 20m pytest -v -s -m 'core_model and cpu' --cov=vllm_omni --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml"
 
 - label: "Diffusion Model Test"
-  agent_pool: mi325_2
+  agent_pool: mi250_2
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
-    - export GPU_ARCHS=gfx942
+    - python3 -m pip uninstall amd-aiter -y
     - timeout 20m pytest -s -v tests/e2e/offline_inference/test_t2i_model.py -m "core_model and diffusion" --run-level "core_model"
 
 - label: "Diffusion Model CPU offloading Test"
@@ -87,8 +87,9 @@ steps:
   commands:
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
     - export DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA
+    - python3 -m pip uninstall amd-aiter -y
     - |
-      timeout 20m bash -c '
+      timeout 30m bash -c '
         set +e
         pytest -s -v tests/benchmarks/test_serve_cli.py
         EXIT1=\$?
@@ -106,6 +107,7 @@ steps:
     - export VLLM_LOGGING_LEVEL=DEBUG
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
     - export DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA
+    - python3 -m pip uninstall amd-aiter -y
     - timeout 17m pytest -s -v tests/e2e/offline_inference/test_qwen2_5_omni.py
 
 - label: "Omni Model Test Qwen3-Omni"
