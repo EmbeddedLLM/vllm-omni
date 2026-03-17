@@ -61,12 +61,12 @@ steps:
     - timeout 15m pytest -s -v -m "core_model and cache and diffusion and not distributed_cuda and L4"
 
 - label: "Diffusion Sequence Parallelism Test"
-  agent_pool: mi325_2
+  agent_pool: mi250_2
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
-    - export GPU_ARCHS=gfx942
+    - export DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA
     - export VLLM_LOGGING_LEVEL=DEBUG
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
     - timeout 20m pytest -s -v tests/e2e/offline_inference/test_sequence_parallel.py -m core_model
@@ -80,13 +80,13 @@ steps:
     - timeout 20m pytest -s -v tests/diffusion/test_diffusion_worker.py
 
 - label: "Benchmark & Engine Test"
-  agent_pool: mi325_2
+  agent_pool: mi250_2
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
-    - export GPU_ARCHS=gfx942
+    - export DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA
     - |
       timeout 20m bash -c '
         set +e
@@ -98,13 +98,14 @@ steps:
       '
 
 - label: "Omni Model Test Qwen2-5-Omni"
-  agent_pool: mi325_2
+  agent_pool: mi250_2
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
     - export VLLM_LOGGING_LEVEL=DEBUG
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
+    - export DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA
     - timeout 17m pytest -s -v tests/e2e/offline_inference/test_qwen2_5_omni.py
 
 - label: "Omni Model Test Qwen3-Omni"
