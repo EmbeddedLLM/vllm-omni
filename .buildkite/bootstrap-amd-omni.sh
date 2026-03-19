@@ -93,9 +93,9 @@ upload_pipeline() {
 
     # Select test definition file: merge suite for main, ready suite for PRs
     # if [[ $BUILDKITE_BRANCH == "main" ]]; then
-    TEST_YAML="test-amd-merge.yml"
+    # TEST_YAML="test-amd-merge.yml"
     # else
-    #     TEST_YAML="test-amd-ready.yaml"
+    TEST_YAML="test-amd-ready.yaml"
     # fi
 
     (
