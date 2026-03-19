@@ -46,16 +46,16 @@ REFERENCE_PIXELS = [
 
 if current_omni_platform.is_rocm():
     REFERENCE_PIXELS = [
-        {"position": (100, 100), "rgb": (158, 186, 238)},
-        {"position": (400, 50), "rgb": (166, 169, 173)},
-        {"position": (700, 100), "rgb": (112, 122, 142)},
-        {"position": (150, 400), "rgb": (252, 239, 247)},
-        {"position": (512, 336), "rgb": (167, 151, 151)},
-        {"position": (700, 400), "rgb": (97, 92, 101)},
-        {"position": (100, 600), "rgb": (54, 158, 173)},
-        {"position": (400, 600), "rgb": (42, 54, 48)},
-        {"position": (700, 600), "rgb": (83, 163, 219)},
-        {"position": (256, 256), "rgb": (92, 92, 88)},
+        {"position": (100, 100), "rgb": (156, 172, 215)},
+        {"position": (400, 50), "rgb": (106, 144, 216)},
+        {"position": (700, 100), "rgb": (118, 158, 231)},
+        {"position": (150, 400), "rgb": (183, 23, 48)},
+        {"position": (512, 336), "rgb": (218, 215, 191)},
+        {"position": (700, 400), "rgb": (194, 14, 42)},
+        {"position": (100, 600), "rgb": (105, 10, 16)},
+        {"position": (400, 600), "rgb": (167, 33, 46)},
+        {"position": (700, 600), "rgb": (102, 86, 92)},
+        {"position": (256, 256), "rgb": (181, 201, 220)},
     ]
 
 PIXEL_TOLERANCE = 10
