@@ -66,7 +66,7 @@ done
 echo "--- Pulling container"
 ## Temporary change to use AMD Docker Hub to store the vllm-ci image
 # to bypass the rate limit issue with ECR Public Gallery.
-# TODO: @tjtanaa point back to ECR Public Gallery 
+# TODO: @tjtanaa point back to ECR Public Gallery
 # once the amd agents are configured to use ECR Public Gallery.
 # image_name="public.ecr.aws/q9t5s3a7/vllm-ci-test-repo:${BUILDKITE_COMMIT}-rocm-omni"
 image_name="rocm/vllm-ci:${BUILDKITE_COMMIT}-rocm-omni"
