@@ -3,7 +3,7 @@
    Last synced: 2025-12-15
    Modifications: Removed unused CUDA/NVIDIA logic, keeping only AMD tests
 #}
-{% set docker_image_amd = "public.ecr.aws/q9t5s3a7/vllm-ci-test-repo:$BUILDKITE_COMMIT-rocm-omni" %}
+{% set docker_image_amd = "rocm/vllm-ci:$BUILDKITE_COMMIT-rocm-omni" %}
 {% set default_working_dir = "/app/vllm-omni" %}
 
   - group: "AMD Tests"
@@ -28,7 +28,7 @@
             - exit_status: 1  # Machine occasionally fail
               limit: 1
         agents:
-          queue: cpu_queue_premerge
+          queue: amd-cpu
 
     {% for step in steps %}
     {% if step.mirror_hardwares and mirror_hw in step.mirror_hardwares %}
