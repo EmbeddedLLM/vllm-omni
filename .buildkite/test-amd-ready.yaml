@@ -149,7 +149,7 @@ steps:
       '
 
 - label: "Qwen3-TTS E2E Test"
-  agent_pool: mi325_2
+  agent_pool: mi325_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
