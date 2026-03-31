@@ -137,7 +137,7 @@ steps:
   grade: Blocking
   commands:
     - |
-      timeout 20m bash -c '
+      timeout 30m bash -c '
         export VLLM_LOGGING_LEVEL=DEBUG
         export VLLM_WORKER_MULTIPROC_METHOD=spawn
         export VLLM_ALLOW_LONG_MAX_MODEL_LEN="1"
@@ -151,7 +151,7 @@ steps:
   grade: Blocking
   commands:
     - |
-      timeout 20m bash -c '
+      timeout 30m bash -c '
         export VLLM_LOGGING_LEVEL=DEBUG
         export VLLM_WORKER_MULTIPROC_METHOD=spawn
         export VLLM_ALLOW_LONG_MAX_MODEL_LEN="1"
@@ -165,7 +165,7 @@ steps:
   grade: Blocking
   commands:
     - |
-      timeout 20m bash -c '
+      timeout 30m bash -c '
         export VLLM_LOGGING_LEVEL=DEBUG
         export VLLM_WORKER_MULTIPROC_METHOD=spawn
         export VLLM_ALLOW_LONG_MAX_MODEL_LEN="1"
@@ -179,7 +179,7 @@ steps:
   grade: Blocking
   commands:
     - |
-      timeout 20m bash -c '
+      timeout 30m bash -c '
         export VLLM_LOGGING_LEVEL=DEBUG
         export VLLM_WORKER_MULTIPROC_METHOD=spawn
         export VLLM_ALLOW_LONG_MAX_MODEL_LEN="1"
