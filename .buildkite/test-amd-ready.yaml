@@ -1,7 +1,7 @@
 steps:
 
 - label: "Simple Unit Test"
-  agent_pool: mi250_1
+  agent_pool: mi325_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
