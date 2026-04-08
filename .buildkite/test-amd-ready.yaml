@@ -102,7 +102,7 @@ steps:
     - timeout 20m pytest -s -v tests/diffusion/test_diffusion_worker.py
 
 - label: "Engine Test"
-  agent_pool: mi325_1
+  agent_pool: mi250_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
