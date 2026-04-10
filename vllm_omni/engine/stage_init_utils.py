@@ -140,7 +140,6 @@ def extract_stage_metadata(stage_config: Any) -> StageMetadata:
     engine_args = stage_config.engine_args
 
     if current_omni_platform.is_rocm():
-        print(f"engine_args: {str(engine_args)}")
         if engine_args.get("attention_backend") is None:
             from vllm._aiter_ops import rocm_aiter_ops
 
