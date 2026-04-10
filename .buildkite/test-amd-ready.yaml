@@ -10,7 +10,7 @@ steps:
     - "timeout 20m pytest -v -s -m 'core_model and cpu' --cov=vllm_omni --cov-branch --cov-report=term-missing --cov-report=html --cov-report=xml"
 
 - label: "Voxtral TTS CUDA Unit Test"
-  agent_pool: mi250_1
+  agent_pool: mi325_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
@@ -34,7 +34,7 @@ steps:
     - timeout 20m pytest -s -v tests/e2e/offline_inference/test_qwen_image_diffusion_batching.py -m "core_model and diffusion" --run-level "core_model"
 
 - label: "Custom Pipeline Test"
-  agent_pool: mi250_1
+  agent_pool: mi325_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
@@ -42,7 +42,7 @@ steps:
     - timeout 20m pytest -s -v tests/e2e/offline_inference/custom_pipeline/ -m "core_model"
 
 - label: "Diffusion Model CPU offloading Test"
-  agent_pool: mi250_1
+  agent_pool: mi325_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
@@ -72,7 +72,7 @@ steps:
 #     - timeout 20m pytest -s -v tests/e2e/offline_inference/test_stable_audio_model.py
 
 - label: "Diffusion Cache Backend Test"
-  agent_pool: mi250_1
+  agent_pool: mi325_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
@@ -93,7 +93,7 @@ steps:
     - timeout 20m pytest -s -v tests/e2e/offline_inference/test_sequence_parallel.py -m core_model
 
 - label: "Diffusion GPU Worker Test"
-  agent_pool: mi250_2
+  agent_pool: mi325_2
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
@@ -101,7 +101,7 @@ steps:
     - timeout 20m pytest -s -v tests/diffusion/test_diffusion_worker.py
 
 - label: "Engine Test"
-  agent_pool: mi250_1
+  agent_pool: mi325_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
