@@ -70,6 +70,7 @@ steps:
   agent_pool: mi325_4
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
+  grade: Blocking
   commands:
     - export VLLM_LOGGING_LEVEL=DEBUG
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
