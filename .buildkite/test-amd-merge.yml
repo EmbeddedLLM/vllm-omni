@@ -67,7 +67,7 @@ steps:
     - timeout 15m pytest -s -v -m "core_model and cache and diffusion and not distributed_cuda and L4"
 
 - label: "Diffusion Sequence Parallelism Test (Need 4 GPUs)"
-  agent_pool: mi250_4
+  agent_pool: mi325_4
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   commands:
