@@ -66,11 +66,10 @@ steps:
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
     - timeout 15m pytest -s -v -m "core_model and cache and diffusion and not distributed_cuda and L4"
 
-- label: "Diffusion Sequence Parallelism Test"
-  agent_pool: mi325_2
+- label: "Diffusion Sequence Parallelism Test (Need 4 GPUs)"
+  agent_pool: mi250_4
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
-  grade: Blocking
   commands:
     - export VLLM_LOGGING_LEVEL=DEBUG
     - export VLLM_WORKER_MULTIPROC_METHOD=spawn
