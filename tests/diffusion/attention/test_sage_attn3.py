@@ -11,8 +11,13 @@ from vllm.platforms.interface import DeviceCapability
 
 from vllm_omni.diffusion.attention.backends.registry import DiffusionAttentionBackendEnum
 from vllm_omni.diffusion.envs import PACKAGES_CHECKER
-from vllm_omni.platforms.cuda import platform as cuda_platform_module
-from vllm_omni.platforms.cuda.platform import CudaOmniPlatform
+from vllm_omni.platforms import current_omni_platform
+
+if not current_omni_platform.is_cuda():
+    pytest.skip("Skipping CUDA platform test", allow_module_level=True)
+
+from vllm_omni.platforms.cuda import platform as cuda_platform_module  # noqa: E402
+from vllm_omni.platforms.cuda.platform import CudaOmniPlatform  # noqa: E402
 
 SAGE_ATTN3_MODULE = "vllm_omni.diffusion.attention.backends.sage_attn3"
 
