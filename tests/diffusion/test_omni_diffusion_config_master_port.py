@@ -11,26 +11,37 @@ from vllm_omni.diffusion.data import OmniDiffusionConfig
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 
+def _get_available_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("", 0))
+        return sock.getsockname()[1]
+
+
 class TestOmniDiffusionConfigMasterPort:
     def test_honors_master_port_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MASTER_PORT", "43210")
+        port = _get_available_port()
+        monkeypatch.setenv("MASTER_PORT", str(port))
         config = OmniDiffusionConfig(model="test")
-        assert config.master_port == 43210
+        assert config.master_port == port
 
     def test_honors_explicit_master_port(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MASTER_PORT", raising=False)
-        config = OmniDiffusionConfig(model="test", master_port=40000)
-        assert config.master_port == 40000
+        port = _get_available_port()
+        config = OmniDiffusionConfig(model="test", master_port=port)
+        assert config.master_port == port
 
     def test_master_port_env_takes_precedence_over_kwarg(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("MASTER_PORT", "43210")
-        config = OmniDiffusionConfig(model="test", master_port=40000)
-        assert config.master_port == 43210
+        env_port = _get_available_port()
+        kwarg_port = _get_available_port()
+        monkeypatch.setenv("MASTER_PORT", str(env_port))
+        config = OmniDiffusionConfig(model="test", master_port=kwarg_port)
+        assert config.master_port == env_port
 
     def test_explicit_master_port_is_stable_without_jitter(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MASTER_PORT", raising=False)
-        ports = {OmniDiffusionConfig(model="test", master_port=40123).master_port for _ in range(5)}
-        assert ports == {40123}
+        port = _get_available_port()
+        ports = {OmniDiffusionConfig(model="test", master_port=port).master_port for _ in range(5)}
+        assert ports == {port}
 
     def test_default_master_port_is_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MASTER_PORT", raising=False)
