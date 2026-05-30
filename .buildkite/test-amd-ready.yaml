@@ -30,13 +30,13 @@ steps:
   commands:
     - timeout 10m pytest -s -v tests/model_executor/models/voxtral_tts/test_cuda_graph_acoustic_transformer.py
 
-- label: "Diffusion Batching Test"
+- label: "Diffusion · Batch Test"
   agent_pool: mi325_1
   depends_on: amd-build
   mirror_hardwares: [amdproduction]
   grade: Blocking
   commands:
-    - timeout 20m pytest -s -v tests/diffusion/batching/test_diffusion_batching.py -m "core_model and diffusion" --run-level "core_model"
+    - timeout 20m pytest -sv tests/diffusion/batching -m 'core_model and cuda' --run-level "core_model"
 
 - label: "Custom Pipeline Test"
   agent_pool: mi325_1
