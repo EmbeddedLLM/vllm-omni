@@ -17,6 +17,23 @@ def _get_available_port() -> int:
         return sock.getsockname()[1]
 
 
+def _bind_available_port_below(max_port: int, port_inc: int) -> socket.socket:
+    for _ in range(100):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.bind(("", 0))
+            port = sock.getsockname()[1]
+            if port >= max_port - port_inc:
+                sock.close()
+                continue
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as next_sock:
+                next_sock.bind(("", port + port_inc))
+            return sock
+        except OSError:
+            sock.close()
+    raise RuntimeError(f"Failed to reserve an available port below {max_port - port_inc}")
+
+
 class TestOmniDiffusionConfigMasterPort:
     def test_honors_master_port_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         port = _get_available_port()
@@ -53,8 +70,7 @@ class TestOmniDiffusionConfigMasterPort:
 
     def test_settle_port_steps_when_port_is_busy(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MASTER_PORT", raising=False)
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.bind(("", 0))
+        with _bind_available_port_below(max_port=60000, port_inc=37) as sock:
             busy_port = sock.getsockname()[1]
             config = OmniDiffusionConfig(model="test", master_port=busy_port)
             assert config.master_port == busy_port + 37
